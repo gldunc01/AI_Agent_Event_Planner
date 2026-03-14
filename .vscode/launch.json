@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Java Launch (console)",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "com.codeyou.agent.App",
+            "projectName": "java-semantickernel-agent",
+            "cwd": "${workspaceFolder}/java-semantickernel",
+            "console": "internalConsole",
+            "preLaunchTask": "maven build",
+            "env": {
+                "GITHUB_TOKEN": "${env:GITHUB_TOKEN}"
+            }
+        },
+        {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/dotnet-semantickernel/bin/Debug/net9.0/dotnet-semantickernel.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/dotnet-semantickernel",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "GITHUB_TOKEN": "${env:GITHUB_TOKEN}"
+            }
+        },
+        {
+            "name": "Node.js Launch (console)",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/javascript-langchain/app.js",
+            "cwd": "${workspaceFolder}/javascript-langchain",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/javascript-langchain/.env"
+        },
+        {
+            "name": "Python Launch (console)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/python-langchain/app.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/python-langchain",
+            "envFile": "${workspaceFolder}/python-langchain/.env"
+        }
+    ]
+}

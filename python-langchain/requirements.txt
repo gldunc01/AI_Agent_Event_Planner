@@ -1,0 +1,14 @@
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+langgraph>=0.2.0
+python-dotenv>=1.0.0
+langchain-mcp-adapters>=0.1.0
+
+# LLM + Models
+openai>=1.0.0  # For ChatOpenAI compatibility
+
+# Environment + Utils
+qrcode[pil]>=7.4.2  # QR code generation
+Pillow>=10.0.0  # For flyer PNG rendering
+

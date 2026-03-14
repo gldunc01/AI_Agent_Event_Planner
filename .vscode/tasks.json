@@ -1,0 +1,75 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/dotnet-semantickernel/dotnet-semantickernel.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "maven build",
+            "type": "shell",
+            "command": "mvn",
+            "args": [
+                "clean",
+                "compile"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/java-semantickernel"
+            },
+            "problemMatcher": "$maven",
+            "group": "build"
+        },
+        {
+            "label": "maven package",
+            "type": "shell",
+            "command": "mvn",
+            "args": [
+                "clean",
+                "package"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/java-semantickernel"
+            },
+            "problemMatcher": "$maven",
+            "group": "build"
+        },
+        {
+            "label": "npm install",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/javascript-langchain"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "pip install",
+            "type": "shell",
+            "command": "pip",
+            "args": [
+                "install",
+                "-r",
+                "requirements.txt"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/python-langchain"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
