@@ -40,7 +40,46 @@ st.set_page_config(page_title="Youth Registration", layout="wide")
 
 form_data = load_form()
 
-st.title(form_data.get("title", "Youth Registration Form"))
+# Initialize session state for page navigation
+if 'show_summary' not in st.session_state:
+    st.session_state['show_summary'] = False
+if 'submission_summary' not in st.session_state:
+    st.session_state['submission_summary'] = None
+
+# Show summary page if submission was successful
+if st.session_state.get('show_summary', False):
+    st.markdown("<h1 style='color: purple; text-align: center;'>Registration Submitted</h1>", unsafe_allow_html=True)
+    st.success("🎉 Registration submitted successfully!")
+    st.balloons()
+    st.subheader("📄 Your Submission Summary")
+    summary = st.session_state.get('submission_summary', {})
+    if summary:
+        st.markdown(f"**Youth Name:** {summary.get('youth_first_last_name', '')}")
+        st.markdown(f"**Age:** {summary.get('youth_age', '')}")
+        st.markdown(f"**Parent/Guardian:** {summary.get('parent_first_last_name', '')}")
+        st.markdown(f"**Phone:** {summary.get('parent_phone', '')}")
+        st.markdown(f"**Transportation Needed:** {summary.get('transportation_needed', '')}")
+        st.markdown(f"**Special Needs:** {summary.get('special_needs', 'None') or 'None'}")
+        st.markdown(f"**Consent Given:** {'Yes' if summary.get('consent') else 'No'}")
+        st.markdown(f"**Signature:** {summary.get('signature', '')}")
+        st.markdown(f"**Date:** {summary.get('date', '')}")
+        st.markdown(f"---")
+        st.markdown(f"**Event:** {summary.get('event_name', '')}")
+        st.markdown(f"**Event Date:** {summary.get('date_event', '')}")
+        st.markdown(f"**Time:** {summary.get('time', '')}")
+        st.markdown(f"**Location:** {summary.get('location', '')}")
+    # Download feature removed: parents cannot download the dataset
+    # Option to return to form
+    if st.button("⬅️ Register Another Child"):
+        st.session_state['show_summary'] = False
+        st.session_state['submission_summary'] = None
+        st.rerun()
+    st.stop()  # Stop execution here, don't show form
+
+# Show registration form
+st.markdown("<h1 style='color: purple; text-align: center;'>Spring Youth Basketball Clinic Registration</h1>", unsafe_allow_html=True)
+
+# st.title(form_data.get("title", "Youth Registration Form"))
 
 if "description" in form_data:
     st.write(form_data["description"])
@@ -130,6 +169,8 @@ with st.form(key="youth_registration"):
         submitted = st.form_submit_button("✅ Register", use_container_width=True)
 
 
+
+
 if submitted:
     # Basic validation
     missing = [name for name, val in form_values.items() if not val and any(f.get("required") for f in form_data["fields"] if f["name"] == name)]
@@ -149,29 +190,23 @@ if submitted:
             "description": form_data.get("event_details", {}).get("description", "")
         }
         insert_registration(submission)
-        st.success("🎉 Registration submitted successfully!")
-        st.balloons()
-        # Show submitted data
-        st.subheader("📄 Your Submission")
-        st.json(submission)
-        # Download CSV
-        df = get_all_registrations()
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("💾 Download All Registrations (CSV)", csv, "registrations.csv", "text/csv")
+        st.session_state['submission_summary'] = submission
+        st.session_state['show_summary'] = True
+        st.rerun()
 
 
-# Show past registrations from database
-df = get_all_registrations()
-if not df.empty:
-    st.subheader(f"📊 All Registrations ({len(df)})")
-    # Show all columns, or a subset if you want
-    st.dataframe(df)
+
 
 # Sidebar for JSON update
 with st.sidebar:
-    st.header("🔧 Form Config")
-    new_json = st.text_area("Paste new form JSON", value=form_json, height=300)
-    if st.button("Reload Form"):
-        st.cache_data.clear()
-        st.rerun()
-    st.info("💡 Run `streamlit run form_app.py`")
+    st.image("NewburgCOCLogo.png", width=150)
+    st.markdown("---")  # Adds a horizontal line for separation
+    st.header("Event Details")
+    # new_json = st.text_area("Paste new form JSON", value=form_json, height=300)
+    st.write("Date: April 15-17, 2026")
+    st.write("Time: 6-8 PM daily")
+    st.write("Location: Newburg Church of Christ Gym")
+    # if st.button("Reload Form"):
+    #     st.cache_data.clear()
+    #     st.rerun()
+    # st.info("💡 Run `streamlit run form_app.py`")
