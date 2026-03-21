@@ -2,8 +2,10 @@ import os
 import asyncio
 import json
 from typing import TypedDict, Annotated, Literal, Dict, Any
+from datetime import datetime
 from dotenv import load_dotenv
 from langchain.agents import create_agent
+from langchain.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -18,6 +20,8 @@ import re
 
 load_dotenv()
 
+
+# State definition for LangGraph: holds the message history for the agent pipeline.
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -43,6 +47,12 @@ def print_banner(text: str, symbol: str = "="):
     print(f"{symbol*10} {text.center(40)} {symbol*10}")
     print(line)
 
+
+# --- TOOL CANDIDATE ---
+# This function is a good candidate to expose as a tool:
+# - Input: flyer_data (dict with required fields), qr_path (path to QR PNG)
+# - Output: flyer PNG file saved to disk
+# - Used for: 'flyer' and 'basketball_clinic' tasks
 def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png"):
     """Generate simple flyer PNG from JSON + QR."""
     print_banner("🎨 GENERATING FLYER PNG", "🖼️")
@@ -169,6 +179,14 @@ async def editor_node(state: State) -> Command[Literal["__end__", "writer"]]:
     response = await editor_agent.ainvoke({"messages": truncated_messages})
     feedback = response["messages"][-1].content
     
+    # Check if the editor used the save_proposal_email tool
+    print("\n📊 Editor Actions:")
+    for msg in response["messages"][-3:]:
+        if hasattr(msg, 'name') and msg.name:
+            print(f"  ✓ Tool '{msg.name}' used")
+        elif msg.type == "ai":
+            print(f"  ✓ Feedback provided")
+    
     print("\n👀 EDITOR FEEDBACK:")
     print("="*50)
     print(feedback)
@@ -184,46 +202,73 @@ async def editor_node(state: State) -> Command[Literal["__end__", "writer"]]:
 
 
 def get_task_prompt(task_type: str, payload: Dict[str, Any]) -> str:
-        prompts = {
-        "youth_registration_form": """
+    # Extract form_url from event_details for flyer prompt
+    event_details = payload.get("event_details", {})
+    form_url = event_details.get("form_url", "https://forms.example.com/register")
+    
+    prompts = {
+        "youth_registration_form": f"""
     You are a form designer for youth ministry events.
-    Output VALID JSON schema ONLY for a mobile-friendly registration form.
-
-    {
+    Design a mobile-friendly registration form using the build_registration_form tool.
+    
+    STEP 1: First, design the form JSON schema with these required fields:
+    {{
       "title": "string",
       "description": "string", 
-      "fields": [{"name": "str", "label": "str", "type": "text|number|tel|textarea|select", "required": bool, "options": []}]
-    }
-
-    Include: youth first/last/age, parent first/last/phone, youth_phone(opt), accommodations, transportation.
+      "fields": [{{"name": "str", "label": "str", "type": "text|number|tel|textarea|select", "required": bool, "options": []}}]
+    }}
+    
+    Include fields for: youth first/last/age, parent first/last/phone, youth_phone(opt), accommodations, transportation.
+    
+    STEP 2: Once you have created the JSON schema object, call the build_registration_form tool with:
+    - llm_output: the JSON schema you designed (as a string)
+    - form_url: \"{form_url}\"
+    
+    The tool will automatically extract the form schema and generate a QR code for you.
     """,
         
-        "flyer": """
-    Create flyer content JSON for youth events. Respond with ONLY valid JSON. No text, explanations, markdown, or code blocks before/after. Example: {\"headline\": \"...\"}.
-
-    {
+        "flyer": f"""
+    Create flyer content for youth events using the generate_flyer_package tool.
+    
+    STEP 1: First, design the flyer JSON with these required fields:
+    {{
       "headline": "str",
       "subheadline": "str", 
       "date_time_line": "str",
       "location_line": "str",
       "body_blurb": "str",
       "call_to_action": "str",
-      "color_scheme": {"primary": "#hex", "secondary": "#hex", "accent": "#hex"}
-    }
-
-    Short, energetic text. Mention QR registration.
+      "color_scheme": {{"primary": "#hex", "secondary": "#hex", "accent": "#hex"}}
+    }}
+    
+    Use short, energetic text. Mention QR registration in the content.
+    
+    STEP 2: Once you have created the JSON object, call the generate_flyer_package tool with:
+    - flyer_data: the JSON object you designed
+    - form_url: \"{form_url}\"
+    
+    The tool will automatically generate the QR code PNG and flyer PNG for you.
     """,
         
-        "proposal_email": """
+        "proposal_email": f"""
     Write a professional proposal email to church leadership.
-    Output PLAIN TEXT email body ONLY (no JSON), ready for Outlook.
+    Output PLAIN TEXT email body ONLY (no JSON), ready to send.
 
-    Include: event details, safety/logistics, budget, approval ask.
-    Subject line in first line as "Subject: Title".
+    STEP 1: Write the email with:
+    - Subject line as first line: "Subject: <title>"
+    - Include: event details, safety/logistics, budget, approval ask
+    - Professional tone, clear and concise
+    
+    STEP 2: After writing the email, call the save_proposal_email tool to archive it:
+    - email_body: your complete email text
+    - event_name: "{event_details.get('event_name', 'Unnamed Event')}"
+    - recipient: (use default or customize if needed)
+    
+    The tool will automatically save the email to a timestamped file for your records.
     """
-        }
-        base_prompt = prompts.get(task_type, "You are a skilled content writer.")
-        return base_prompt + f"\n\nEvent details: {json.dumps(payload, indent=2)}"
+    }
+    base_prompt = prompts.get(task_type, "You are a skilled content writer.")
+    return base_prompt + f"\n\nEvent details: {json.dumps(payload, indent=2)}"
 
 def extractjsonfromtext(text: str) -> dict:
     """Extract JSON from LLM output with multiple strategies."""
@@ -312,6 +357,12 @@ def extractjsonfromtext(text: str) -> dict:
     
 #     raise ValueError("No valid JSON found in output")
 
+
+# --- TOOL CANDIDATE ---
+# This function is a good candidate to expose as a tool:
+# - Input: form_url (string)
+# - Output: path to saved QR PNG
+# - Used for: all tasks that need a QR code (flyer, basketball_clinic, youth_registration_form)
 def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
     print_banner("📱 GENERATING QR CODE")
     print(f"🔗 Linking to: {form_url}")
@@ -325,6 +376,124 @@ def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
     print(f"✅ QR SAVED to: {os.path.abspath(output_path)}")  # FULL PATH
     print("📲 Ready for flyers/texts!")
     return output_path
+
+
+# --- LANGGRAPH TOOL: Flyer Package Generation ---
+# This tool is exposed to the writer agent and can be called during the writing phase.
+# It encapsulates the logic for generating both QR codes and flyer PNGs.
+@tool
+def generate_flyer_package(flyer_data: dict, form_url: str = "https://forms.example.com/register") -> dict:
+    """
+    Generate a complete flyer package including PNG and QR code.
+    
+    This tool takes flyer content data and generates:
+    - A QR code PNG linking to the provided form_url
+    - A flyer PNG with all the event details
+    
+    Args:
+        flyer_data: Dictionary with required fields:
+            - headline: Main event title (str)
+            - subheadline: Subtitle (str)
+            - date_time_line: When the event is (str)
+            - location_line: Where the event is (str)
+            - body_blurb: Event description (str)
+            - call_to_action: What to do next (str)
+            - color_scheme: Dict with 'primary' and 'accent' hex colors (dict)
+        form_url: URL to embed in the QR code for registration (str, default: https://forms.example.com/register)
+    
+    Returns:
+        Dictionary with:
+        - "flyer_path": Absolute path to generated flyer PNG
+        - "qr_path": Absolute path to generated QR PNG
+    """
+    qr_path = create_qr_png(form_url)
+    flyer_path = save_flyer_png(flyer_data, qr_path)
+    return {
+        "flyer_path": flyer_path,
+        "qr_path": qr_path
+    }
+
+
+# --- LANGGRAPH TOOL: Registration Form Builder ---
+# This tool is exposed to the writer agent and can be called during the writing phase.
+# It encapsulates the logic for extracting form JSON and generating QR codes.
+@tool
+def build_registration_form(llm_output: str, form_url: str = "https://forms.example.com/register") -> dict:
+    """
+    Build and validate a registration form schema with QR code.
+    
+    This tool takes LLM-generated form schema content and generates:
+    - A parsed and validated form schema dictionary
+    - A QR code PNG linking to the provided form_url
+    
+    Args:
+        llm_output: The LLM-generated form schema as a string (should be valid JSON)
+        form_url: URL to embed in the QR code for registration (str, default: https://forms.example.com/register)
+    
+    Returns:
+        Dictionary with:
+        - "form_schema": Parsed form schema dictionary with fields (title, description, fields)
+        - "qr_path": Absolute path to generated QR code PNG
+    """
+    form_schema = extractjsonfromtext(llm_output)
+    qr_path = create_qr_png(form_url)
+    return {
+        "form_schema": form_schema,
+        "qr_path": qr_path
+    }
+
+
+# --- LANGGRAPH TOOL: Proposal Email Save ---
+# This tool is exposed to the editor agent and can be called at the end of email refinement.
+# It encapsulates the logic for exporting proposal emails to timestamped files.
+@tool
+def save_proposal_email(email_body: str, event_name: str = "Unnamed Event", recipient: str = "pastor@church.org") -> dict:
+    """
+    Save a proposal email to a timestamped text file for archival.
+    
+    This tool takes the finalized email text and saves it with recipient info
+    to a text file for record-keeping and future reference.
+    
+    Args:
+        email_body: The complete email text (as a string)
+        event_name: Name of the event (used for filename slug, default: "Unnamed Event")
+        recipient: Email recipient address (default: "pastor@church.org")
+    
+    Returns:
+        Dictionary with:
+        - "file_path": Absolute path to saved email file
+        - "recipient": The recipient email address
+        - "event_name": The event name used in the filename
+    """
+    # Create a safe slug from event_name
+    slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
+    
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Build filename
+    filename = f"proposal_email_{slug}_{timestamp}.txt"
+    file_path = os.path.abspath(filename)
+    
+    # Write file with recipient header
+    with open(file_path, 'w') as f:
+        f.write(f"To: {recipient}\n")
+        f.write(f"Date: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}\n")
+        f.write(f"Event: {event_name}\n")
+        f.write("\n" + "="*60 + "\n\n")
+        f.write(email_body)
+    
+    print_banner("💾 EMAIL ARCHIVED", "📧")
+    print(f"✅ Email saved to: {file_path}")
+    print(f"📬 Recipient: {recipient}")
+    print(f"📅 Event: {event_name}")
+    
+    return {
+        "file_path": file_path,
+        "recipient": recipient,
+        "event_name": event_name
+    }
+
 
 async def main():
     global researcher_agent, writer_agent, editor_agent
@@ -351,7 +520,20 @@ async def main():
         except:
             print(f"⚠️ {fname} missing → using fallback")
     
-    # Researcher
+    # ===== CENTRALIZED TOOL WIRING =====
+    # Task execution is decomposed into specialized agents with specific tools:
+    # - Researcher: Uses external MCP tools (Tavily) for web search and research
+    # - Writer: Uses flyer and form generation tools for content creation
+    # - Editor: Uses email archival tool for saving finalized proposals
+    # Tools handle file I/O and generation; task_type influences prompts.
+    
+    # Writer tools: content generation + file creation
+    writer_tools = [generate_flyer_package, build_registration_form]
+    
+    # Editor tools: email archival
+    editor_tools = [save_proposal_email]
+    
+    # Researcher tools: from MCP client (web search, etc.)
     researcher_tools = []
     if os.getenv("TAVILY_API_KEY"):
         research_client = MultiServerMCPClient({
@@ -360,10 +542,12 @@ async def main():
         researcher_tools = await research_client.get_tools()
         print(f"🔍 Researcher tools loaded: {len(researcher_tools)}")
     
+    # Create agents with their respective tools
     researcher_agent = create_agent(llm, tools=researcher_tools, system_prompt=prompts["researcher"])
-    editor_agent = create_agent(llm, tools=[], system_prompt=prompts["editor"])
+    editor_agent = create_agent(llm, tools=editor_tools, system_prompt=prompts["editor"])
     
-    # Graph
+    # Graph: Researcher → Writer → Editor (with fallback from Editor to Writer)
+    # Task types do NOT influence graph structure; they only affect writer prompts.
     builder = StateGraph(State)
     builder.add_node("researcher", researcher_node).add_node("writer", writer_node).add_node("editor", editor_node)
     builder.add_edge(START, "researcher")
@@ -375,6 +559,7 @@ async def main():
     print("  • 'proposal_email' → Ready-to-send email")
     print("\n🎯 Basketball clinic example ready to copy ↓")
     
+
     while True:
         try:
             payload_str = input("\n📝 JSON payload (or 'quit'): ").strip()
@@ -389,9 +574,11 @@ async def main():
             print(f"\n🎯 TASK: {task_type.upper()}")
             print(f"📊 Event: {payload.get('event_details', {}).get('event_name', 'Unnamed')}")
             
-            # Dynamic writer
+            # Create writer agent with task-specific prompt but shared tools
+            # The prompt guides the writer on what to create (flyer, form, or email);
+            # the tools enable it to call external functions for file generation.
             writer_prompt = get_task_prompt(task_type, payload)
-            writer_agent = create_agent(llm, tools=[], system_prompt=writer_prompt)
+            writer_agent = create_agent(llm, tools=writer_tools, system_prompt=writer_prompt)
             
             # RUN PIPELINE
             print_banner("⚙️ PIPELINE STARTING")
@@ -403,65 +590,100 @@ async def main():
             print_banner("✅ PIPELINE COMPLETE")
             
             # POST-PROCESS EXPORTS
+            # Most heavy lifting is done by tools (file generation, QR creation, etc.).
+            # Post-processing here handles:
+            # - Extracting tool results from agent messages (optional)
+            # - Displaying final outputs to user
+            # - Fallback extraction if tools weren't called
+            
             event_details = payload.get("event_details", {})
             form_url = event_details.get("form_url", "https://forms.example.com/register")
             
+            # --- TASK TYPE: 'flyer' and 'basketball_clinic' ---
+            # Writer agent calls generate_flyer_package tool.
+            # Tool handles QR + PNG generation automatically.
+            # This branch displays results and provides fallback.
             if task_type in ["flyer", "basketball_clinic"]:
                 print_banner("🎨 FLYER EXPORT MODE")
-                print("📄 Raw writer output:")
+                print("📄 Writer output (for reference):")
                 print(output[:500] + "..." if len(output) > 500 else output)
                 
-                # Always generate QR
-                qr_path = create_qr_png(form_url)
+                # Check if tool was called successfully
+                tool_called = any(hasattr(msg, 'name') and msg.name == "generate_flyer_package" for msg in result["messages"])
                 
-                # Try to extract JSON
-                try:
-                    flyer_data = extractjsonfromtext(output)
-                    print("✅ Parsed JSON from output!")
-                    flyer_path = save_flyer_png(flyer_data, qr_path)
-                    print(f"\n🎉 FULL FLYER PACKAGE EXPORTED:")
-                    print(f"  🖼️  Flyer: {flyer_path}")
-                    print(f"  📱  QR Code: {qr_path}")
-                except (ValueError, KeyError, TypeError) as e:
-                    print(f"⚠️ Error processing flyer: {e}")
-                    print(f"📱 QR Code ready: {qr_path}")
-                    print("\n💡 Extracted data check:")
+                if tool_called:
+                    print("\n✅ Writer used generate_flyer_package tool")
+                    print("📁 Files should be saved in current directory")
+                    # Look for the tool result message
+                    for msg in result["messages"]:
+                        if hasattr(msg, 'tool_call_id'):
+                            print(f"  ✓ Tool execution confirmed")
+                else:
+                    # Fallback: try to extract and generate manually
+                    print("\n⚠️ Tool was not called. Attempting fallback extraction...")
+                    qr_path = create_qr_png(form_url)
                     try:
-                        data = extractjsonfromtext(output)
-                        print(f"  Type: {type(data)}")
-                        print(f"  Content: {str(data)[:300]}")
-                    except:
-                        print(f"  Could not extract JSON at all")
-                    print("\n💡 Could not auto-extract valid flyer JSON. Please copy and paste ONLY the JSON portion below (edit if needed), then press Enter:")
-                    print("----- COPY BELOW THIS LINE -----")
-                    print(output)
-                    print("----- END -----")
-                    flyer_json_str = input("Paste valid JSON here (or leave blank to skip flyer export): ").strip()
-                    if flyer_json_str:
-                        try:
-                            flyer_data = json.loads(flyer_json_str)
-                            flyer_path = save_flyer_png(flyer_data, qr_path)
-                            print(f"\n🎉 FULL FLYER PACKAGE EXPORTED (manual):")
-                            print(f"  🖼️  Flyer: {flyer_path}")
-                            print(f"  📱  QR Code: {qr_path}")
-                        except Exception as e2:
-                            print(f"❌ Still invalid: {e2}")
-                
-            elif task_type == "youth_registration_form":
-                qr_path = create_qr_png(form_url)
-                print("\n📋 Form JSON (copy to SurveyHeart/Streamlit):")
-                try:
-                    form_data = extractjsonfromtext(output)
-                    print(json.dumps(form_data, indent=2))
-                except:
-                    print(output)
+                        flyer_data = extractjsonfromtext(output)
+                        print("✅ Parsed JSON from output!")
+                        flyer_path = save_flyer_png(flyer_data, qr_path)
+                        print(f"\n🎉 FLYER PACKAGE EXPORTED (fallback):")
+                        print(f"  🖼️  Flyer: {flyer_path}")
+                        print(f"  📱  QR Code: {qr_path}")
+                    except (ValueError, KeyError, TypeError) as e:
+                        print(f"❌ Fallback failed: {e}")
+                        print("\n💡 Please manually copy the JSON from the output above and save it.")
             
+            # --- TASK TYPE: 'youth_registration_form' ---
+            # Writer agent calls build_registration_form tool.
+            # Tool handles JSON extraction + QR generation automatically.
+            # This branch displays results and provides fallback.
+            elif task_type == "youth_registration_form":
+                print("\n📋 FORM GENERATION MODE")
+                print("📄 Writer output (for reference):")
+                print(output[:500] + "..." if len(output) > 500 else output)
+                
+                # Check if tool was called successfully
+                tool_called = any(hasattr(msg, 'name') and msg.name == "build_registration_form" for msg in result["messages"])
+                
+                if tool_called:
+                    print("\n✅ Writer used build_registration_form tool")
+                    print("📁 Files should be saved in current directory")
+                else:
+                    # Fallback: try to extract and generate manually
+                    print("\n⚠️ Tool was not called. Attempting fallback extraction...")
+                    try:
+                        form_data = extractjsonfromtext(output)
+                        print("✅ Parsed form schema!")
+                        print("📋 Form JSON (copy to SurveyHeart/Streamlit):")
+                        print(json.dumps(form_data, indent=2))
+                        qr_path = create_qr_png(form_url)
+                        print(f"\n📁 QR Code saved: {qr_path}")
+                    except (ValueError, KeyError, TypeError) as e:
+                        print(f"❌ Fallback failed: {e}")
+                        print("\n💡 Please manually copy the JSON from the output above.")
+            
+            # --- TASK TYPE: 'proposal_email' ---
+            # Editor agent calls save_proposal_email tool.
+            # Tool handles email file archival (with recipient + timestamp).
+            # This branch displays the email and confirms file save.
             elif task_type == "proposal_email":
                 print("\n📧 EMAIL READY - COPY TO OUTLOOK/GMAIL:")
                 print("-"*50)
                 print(output)
                 print("-"*50)
+                
+                # Check if editor called the save tool
+                tool_called = any(hasattr(msg, 'name') and msg.name == "save_proposal_email" for msg in result["messages"])
+                
+                if tool_called:
+                    print("\n✅ Editor archived the email")
+                    print("📁 Email file should be saved in current directory with timestamp")
+                else:
+                    print("\n💡 Tip: Email tool could have been called by editor to auto-archive.")
             
+            # --- OTHER/UNKNOWN TASK TYPE ---
+            # Behavior:
+            #   - Just print the output
             else:
                 print("\n📋 OUTPUT (copy as needed):")
                 print(output)

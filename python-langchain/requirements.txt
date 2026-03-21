@@ -11,4 +11,5 @@ openai>=1.0.0  # For ChatOpenAI compatibility
 # Environment + Utils
 qrcode[pil]>=7.4.2  # QR code generation
 Pillow>=10.0.0  # For flyer PNG rendering
+streamlit>=1.28.0  # Streamlit UI framework
 
