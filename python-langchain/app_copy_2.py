@@ -274,6 +274,7 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     qr_path = create_qr_png(form_url)
     
     print(f"✅ Form generated with QR code: {qr_path}")
+    print("📤 To sync to your hosted app, push current_event_form.json to GitHub manually")
     
     print("\n➡️ Moving to flyer generation...")
     return Command(
