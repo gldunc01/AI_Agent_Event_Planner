@@ -1,11 +1,11 @@
 {
-  "title": "Marriage Retreat Registration Form",
-  "description": "Register for Marriage Retreat. Please provide all required information.",
+  "title": "Boys Night Registration Form",
+  "description": "Register for Boys Night. Please provide all required information.",
   "event_details": {
-    "event_name": "Marriage Retreat",
+    "event_name": "Boys Night",
     "date": "2026-04-15",
     "time": "3:00 PM - 5:00 PM",
-    "location": "Lake Cumberlands",
+    "location": "Campsite",
     "max_participants": 30,
     "age_range": "12-17"
   },
@@ -70,6 +70,28 @@
     },
     {
       "name": "date",
+      "label": "Date",
+      "type": "date",
+      "required": true
+    },
+    {
+      "section": "WAIVER & LIABILITY RELEASE",
+      "type": "section_header"
+    },
+    {
+      "name": "waiver_acknowledgment",
+      "label": "I have read and understand the liability waiver",
+      "type": "checkbox",
+      "required": true
+    },
+    {
+      "name": "waiver_signature",
+      "label": "Sign your name here (Parent/Guardian)",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "waiver_date",
       "label": "Date",
       "type": "date",
       "required": true

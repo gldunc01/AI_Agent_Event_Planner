@@ -18,6 +18,9 @@ import textwrap
 from json_repair import repair_json
 import re
 import hashlib
+import shutil
+from pathlib import Path
+import base64
 
 load_dotenv()
 
@@ -88,8 +91,118 @@ def generate_standardized_form(event_details: Dict) -> dict:
             {"name": "special_needs", "label": "Special accommodations? (If yes, specify)", "type": "textarea", "required": False},
             {"name": "consent", "label": "I give permission for my child to participate.", "type": "checkbox", "required": True},
             {"name": "signature", "label": "Parent/Guardian Signature", "type": "text", "required": True},
-            {"name": "date", "label": "Date", "type": "date", "required": True}
+            {"name": "date", "label": "Date", "type": "date", "required": True},
+            {"section": "WAIVER & LIABILITY RELEASE", "type": "section_header"},
+            {"name": "waiver_acknowledgment", "label": "I have read and understand the liability waiver", "type": "checkbox", "required": True},
+            {"name": "waiver_signature", "label": "Sign your name here (Parent/Guardian)", "type": "text", "required": True},
+            {"name": "waiver_date", "label": "Date", "type": "date", "required": True}
         ]
+    }
+
+
+def setup_waiver_directory() -> str:
+    """Create directory structure for storing waivers."""
+    waivers_dir = os.path.join(os.path.dirname(__file__), "waivers")
+    if not os.path.exists(waivers_dir):
+        os.makedirs(waivers_dir)
+    return waivers_dir
+
+
+def copy_waiver_pdf(waiver_source: str = None) -> str:
+    """
+    Copy the waiver PDF to the waivers directory if it exists.
+    
+    Args:
+        waiver_source: Path to the waiver PDF file. If None, looks for Waiver.pdf in common locations.
+    
+    Returns:
+        Path to the waiver PDF in the waivers directory
+    """
+    waivers_dir = setup_waiver_directory()
+    waiver_dest = os.path.join(waivers_dir, "Waiver.pdf")
+    
+    # If already copied, return path
+    if os.path.exists(waiver_dest):
+        return waiver_dest
+    
+    # If source provided, copy it
+    if waiver_source and os.path.exists(waiver_source):
+        shutil.copy2(waiver_source, waiver_dest)
+        print(f"✅ Waiver PDF stored at: {waiver_dest}")
+        return waiver_dest
+    
+    # Try common locations
+    common_paths = [
+        os.path.expanduser("~/OneDrive/Desktop/Youth Ministry/Waiver.pdf"),
+        os.path.expanduser("~/Desktop/Waiver.pdf"),
+        os.path.join(os.path.dirname(__file__), "Waiver.pdf"),
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            shutil.copy2(path, waiver_dest)
+            print(f"✅ Waiver PDF stored at: {waiver_dest}")
+            return waiver_dest
+    
+    print("⚠️ Waiver PDF not found - skipping waiver storage setup")
+    return waiver_dest
+
+
+def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
+    """
+    Save a record of the signed waiver with participant information.
+    
+    Args:
+        participant_info: Dictionary with participant details including waiver_signature
+        event_name: Name of the event
+    
+    Returns:
+        Dictionary with waiver file path and details
+    """
+    waivers_dir = setup_waiver_directory()
+    
+    # Create event-specific subdirectory
+    event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
+    event_waivers_dir = os.path.join(waivers_dir, event_slug)
+    if not os.path.exists(event_waivers_dir):
+        os.makedirs(event_waivers_dir)
+    
+    # Generate timestamp and filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    youth_name = participant_info.get('youth_first_last_name', 'Unknown')
+    youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
+    
+    filename = f"waiver_{youth_slug}_{timestamp}.json"
+    file_path = os.path.join(event_waivers_dir, filename)
+    
+    # Create waiver record
+    waiver_record = {
+        "event": event_name,
+        "timestamp": datetime.now().isoformat(),
+        "youth_name": participant_info.get('youth_first_last_name', 'N/A'),
+        "youth_age": participant_info.get('youth_age', 'N/A'),
+        "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
+        "parent_phone": participant_info.get('parent_phone', 'N/A'),
+        "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
+        "waiver_date": participant_info.get('waiver_date', 'N/A'),
+        "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
+        "original_signature_date": participant_info.get('date', 'N/A')
+    }
+    
+    # Save to JSON
+    with open(file_path, 'w') as f:
+        json.dump(waiver_record, f, indent=2)
+    
+    print_banner("📋 WAIVER SIGNED & STORED", "✍️")
+    print(f"✅ Waiver record saved: {file_path}")
+    print(f"👤 Participant: {waiver_record['youth_name']}")
+    print(f"📝 Signed by: {waiver_record['waiver_signee']}")
+    
+    return {
+        "file_path": file_path,
+        "event": event_name,
+        "participant": youth_name,
+        "timestamp": waiver_record['timestamp']
     }
 
 
@@ -710,6 +823,12 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     
     truncated_messages = truncate_messages(state["messages"])
     
+    # Setup waiver system
+    print("\n📋 Setting up waiver system...")
+    waiver_dir = setup_waiver_directory()
+    waiver_pdf_path = copy_waiver_pdf()
+    print(f"📁 Waivers will be stored in: {waiver_dir}")
+    
     # Generate the standardized form with event details
     form_schema = generate_standardized_form(event_details)
     
@@ -1007,6 +1126,33 @@ def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
     print(f"✅ QR SAVED to: {os.path.abspath(output_path)}")  # FULL PATH
     print("📲 Ready for flyers/texts!")
     return output_path
+
+
+# --- LANGGRAPH TOOL: Process Waiver Submission ---
+# This tool processes and stores signed waiver information from registrations
+@tool
+def process_waiver_submission(participant_data: dict, event_name: str = "Youth Event") -> dict:
+    """
+    Process and store a signed waiver from a participant.
+    
+    This tool takes registration data (including waiver signature) and stores it securely.
+    
+    Args:
+        participant_data: Dictionary with participant info including:
+            - youth_first_last_name: Youth's full name
+            - youth_age: Youth's age
+            - parent_first_last_name: Parent/Guardian name
+            - parent_phone: Parent/Guardian phone
+            - waiver_signature: Name as signed on waiver
+            - waiver_date: Date waiver was signed
+            - waiver_acknowledgment: Boolean - waiver was acknowledged
+        event_name: Name of the event
+    
+    Returns:
+        Dictionary with waiver storage details and confirmation
+    """
+    result = save_signed_waiver(participant_data, event_name)
+    return result
 
 
 # --- LANGGRAPH TOOL: Flyer Design Variations ---
