@@ -8,6 +8,7 @@ import sqlite3
 import os
 import sys
 import re
+import base64
 from pathlib import Path
 
 # ============================================================================
@@ -319,6 +320,27 @@ with st.form(key="youth_registration"):
             st.divider()
             st.subheader(field.get("section", "Section"))
             current_section = field.get("section", "")
+            
+            # Display waiver PDF button right after the waiver section header
+            if current_section and "WAIVER" in current_section.upper():
+                if WAIVER_ENABLED:
+                    waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
+                    if os.path.exists(waiver_pdf_path):
+                        # Read and encode PDF as base64 for data URI
+                        with open(waiver_pdf_path, "rb") as pdf_file:
+                            pdf_data = pdf_file.read()
+                            pdf_base64 = base64.b64encode(pdf_data).decode()
+                        
+                        # Display HTML download link styled as a button
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 10px;">
+                            <a href="data:application/pdf;base64,{pdf_base64}" download="Youth_Event_Waiver.pdf">
+                                <button style="padding: 10px 20px; border: none; border-radius: 4px; background-color: #f0f2f6; cursor: pointer; font-size: 16px; width: 100%;">
+                                    📄 View Full Waiver PDF
+                                </button>
+                            </a>
+                        </div>
+                        """, unsafe_allow_html=True)
             continue
         
         f_name = field["name"]
@@ -352,20 +374,6 @@ with st.form(key="youth_registration"):
     col1, col2 = st.columns([4, 1])
     with col2:
         submitted = st.form_submit_button("✅ Register", use_container_width=True)
-
-# Display waiver PDF outside the form (download_button can't be in forms)
-if WAIVER_ENABLED:
-    waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
-    if os.path.exists(waiver_pdf_path):
-        st.divider()
-        with open(waiver_pdf_path, "rb") as pdf_file:
-            st.download_button(
-                label="📄 View Full Waiver PDF",
-                data=pdf_file.read(),
-                file_name="Youth_Event_Waiver.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
 
 
 
