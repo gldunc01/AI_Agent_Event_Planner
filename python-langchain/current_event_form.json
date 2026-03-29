@@ -1,11 +1,11 @@
 {
-  "title": "Girls Day Registration Form",
-  "description": "Register for Girls Day. Please provide all required information.",
+  "title": "Youth Bowling Outing Registration Form",
+  "description": "Register for Youth Bowling Outing. Please provide all required information.",
   "event_details": {
-    "event_name": "Girls Day",
-    "date": "04-15-2026",
-    "time": "3:00 PM - 5:00 PM",
-    "location": "Park",
+    "event_name": "Youth Bowling Outing",
+    "date": "04-14-2026",
+    "time": "4:00 - 6:00 PM",
+    "location": "Strike and Spare Hurstbourne",
     "max_participants": 30,
     "age_range": "12-17"
   },
