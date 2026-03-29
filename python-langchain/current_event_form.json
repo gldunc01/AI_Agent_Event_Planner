@@ -1,11 +1,11 @@
 {
-  "title": "Girls Night Out Registration Form",
-  "description": "Register for Girls Night Out. Please provide all required information.",
+  "title": "Youth Bowling Night Registration Form",
+  "description": "Register for Youth Bowling Night. Please provide all required information.",
   "event_details": {
-    "event_name": "Girls Night Out",
-    "date": "April 15, 2026",
-    "time": "2:00 PM - 4:00 PM",
-    "location": "Newburg Church of Christ",
+    "event_name": "Youth Bowling Night",
+    "date": "2026-04-01",
+    "time": "3:00 PM - 5:00 PM",
+    "location": "Strike and Spare Hurstbourne",
     "max_participants": 30,
     "age_range": "12-17"
   },

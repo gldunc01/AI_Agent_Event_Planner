@@ -223,30 +223,8 @@ def main():
             unsafe_allow_html=True,
         )
 
-        # Task Type Selection
-        st.markdown(
-            '<p class="section-header">Task Type</p>', unsafe_allow_html=True
-        )
-        task_type = st.selectbox(
-            "Select the type of content to generate",
-            [
-                "flyer",
-                "youth_registration_form",
-                "basketball_clinic",
-                "proposal_email",
-            ],
-            help="Choose what you want to create",
-            label_visibility="collapsed",
-        )
-
-        # Display task description
-        task_descriptions = {
-            "flyer": "Create an attractive event flyer with QR code for registration",
-            "youth_registration_form": "Design a registration form with QR code link",
-            "basketball_clinic": "Generate specialized content for basketball events",
-            "proposal_email": "Draft a professional proposal email to leadership",
-        }
-        st.info(task_descriptions.get(task_type, ""))
+        # Info box
+        st.info("This tool generates a complete event package: proposal email, registration form, QR code, and promotional flyer.")
 
         # Event Details Section
         st.markdown(
@@ -325,7 +303,6 @@ def main():
         ):
             # Build payload
             payload = {
-                "task_type": task_type,
                 "event_details": {
                     "event_name": event_name,
                     "event_date": event_date,
@@ -340,13 +317,13 @@ def main():
             # Run task with progress indicator
             progress_container = st.container()
             with progress_container:
-                with st.spinner("⏳ Generating content..."):
+                with st.spinner("⏳ Generating complete event package..."):
                     try:
-                        # Run async function
+                        # Run async function (always uses full pipeline)
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         result = loop.run_until_complete(
-                            run_task(task_type, payload)
+                            run_task("flyer", payload)
                         )
                         loop.close()
 
@@ -365,12 +342,6 @@ def main():
         st.markdown("---")
         st.markdown(
             '<div class="card"><div class="card-header">✅ Generation Complete</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Task badge
-        st.markdown(
-            f"<span class='task-badge'>{task_type.replace('_', ' ').title()}</span>",
             unsafe_allow_html=True,
         )
 
@@ -438,10 +409,12 @@ def main():
             """
             <div class="card">
                 <div style="text-align: center; padding: 2rem 0;">
-                    <h3 style="color: #667eea; margin-bottom: 1rem;">👈 Ready to Generate?</h3>
+                    <h3 style="color: #667eea; margin-bottom: 1rem;">🎉 Complete Event Package</h3>
                     <p style="color: #666; font-size: 0.95rem;">
-                        Configure your event details on the left, select your task type, 
-                        and click "Generate Content" to begin.
+                        Fill in your event details on the left, then click "Generate Content" to automatically create:
+                    </p>
+                    <p style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
+                        📧 Proposal Email • 📋 Registration Form • 📱 QR Code • 🎨 Flyer
                     </p>
                 </div>
             </div>

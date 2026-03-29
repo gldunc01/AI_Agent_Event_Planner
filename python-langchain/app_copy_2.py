@@ -340,16 +340,18 @@ async def email_generation_node(state: State) -> Command[Literal["form_generatio
     
     # Create a detailed email generation prompt
     email_task_prompt = f"""
-    Write a professional proposal email to church leadership about this youth event.
+    Write a friendly, conversational proposal email to church leadership about this youth event.
     
     TASK: Generate a complete proposal email with:
-    - Subject line: "Subject: <meaningful title>"
-    - Event overview and purpose
-    - Date, time, and location details
-    - Expected attendance and logistics
-    - Budget considerations and approval request
-    - Safety and supervision plan
-    - Professional, persuasive tone
+    - Warm greeting (e.g., "Good evening Brothers," or similar)
+    - Personal, conversational tone - not corporate or overly formal
+    - Clear event description and purpose
+    - Specific date and time details
+    - Clear cost breakdown: total cost per person, youth payment, church subsidy request
+    - Alternative dates if available
+    - Warm closing with signature
+    - Keep it friendly and genuine, like you're talking to church community members
+    - Use "we" and "our" to include the community
     
     STEP 1: Write the complete email body first (PLAIN TEXT ONLY, no JSON)
     
@@ -528,13 +530,23 @@ def get_task_prompt(task_type: str, payload: Dict[str, Any]) -> str:
     
     # Proposal email prompt
     email_prompt = f"""
-    Write a professional proposal email to church leadership.
+    Write a friendly, conversational proposal email to church leadership.
     Output PLAIN TEXT email body ONLY (no JSON), ready to send.
 
+    Tone & Style:
+    - Warm, personal greeting (e.g., "Good evening Brothers," or similar)
+    - Conversational and genuine - not corporate or stuffy
+    - Like talking to community members, not a formal business letter
+    - Clear, friendly, and respectful
+    
     Structure:
     - Subject line as first line: "Subject: <title>"
-    - Include: event details, safety/logistics, budget, approval ask
-    - Professional tone, clear and concise
+    - Personal greeting
+    - Event details and purpose (what, when, where, why it's great)
+    - Simple cost breakdown (total per person, youth pays, church covers difference)
+    - Specific dates and logistics
+    - Warm closing with signature
+    - Friendly tone throughout
     
     After writing, call the save_proposal_email tool to archive it.
     
@@ -744,7 +756,7 @@ def save_proposal_email(email_body: str, event_name: str = "Unnamed Event", reci
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Build filename
-    filename = f"proposal_email_{slug}_{timestamp}.txt"
+    filename = f"proposal_email_{slug}_{timestamp}.md"
     file_path = os.path.abspath(filename)
     
     # Write file with recipient header
