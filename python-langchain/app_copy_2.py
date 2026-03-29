@@ -455,34 +455,35 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     
     # Create writer agent with flyer-specific prompt
     flyer_task_prompt = f"""
-    Create a professional and eye-catching flyer for this youth event.
+    Create a fun and colorful flyer for this youth church event!
     
     TASK: Design a flyer JSON schema with these required fields:
     {{
-      "headline": "str (main event title, 2-4 words, attention-grabbing)",
-      "subheadline": "str (tagline or subtitle, 5-10 words)", 
+      "headline": "str (main event title, fun and catchy! Use excitement and energy!)",
+      "subheadline": "str (fun tagline or hook - make kids want to come!)", 
       "date_time_line": "str (formatted date and time, e.g., 'Saturday, April 15 • 2:00 PM - 4:00 PM')",
       "location_line": "str (venue name and address)",
-      "body_blurb": "str (short 2-3 sentence description of event highlights)",
-      "call_to_action": "str (action text, e.g., 'Register Now - Scan QR Code')",
-      "color_scheme": {{"primary": "#hex (vibrant main color)", "accent": "#hex (complementary highlight color)"}},
-      "design_style": "str (one of: 'modern', 'bold', 'professional')"
+      "body_blurb": "str (short 2-3 sentences about the super fun stuff happening - use language kids would love!)",
+      "call_to_action": "str (fun action text, e.g., 'Scan QR to Join the Fun!' or 'Click Here to Register!')",
+      "color_scheme": {{"primary": "#hex (bright, fun main color that pops!)", "accent": "#hex (complementary bright color)"}},
+      "design_style": "str (one of: 'modern', 'bold', 'professional' - recommend 'bold' for youth events)"
     }}
     
     DESIGN STYLE GUIDELINES:
-    - 'modern': Clean, centered, card-based layout - best for professional/formal events
-    - 'bold': Vibrant colors, diagonal accents, modern typography - best for youth/sports events
-    - 'professional': Two-column business style - best for organizational events
+    - 'bold': Vibrant colors, dynamic accents, modern typography - BEST for youth events!
+    - 'modern': Clean, centered layout - good for all ages
+    - 'professional': Two-column style - if you want a more traditional look
     
-    REQUIREMENTS FOR PROFESSIONAL APPEARANCE:
-    - Use clear, professional language
-    - Keep text minimal and focused
-    - Use proper formatting (dates, times, complete addresses)
-    - Suggest colors that match the event tone
-    - Make the call-to-action compelling
-    - Include key event details (WHEN, WHERE, WHAT)
+    TONE & CONTENT TIPS FOR KIDS AGES 5-18:
+    - Use exciting, energetic language - not stuffy or corporate!
+    - Include emojis in the text (🎉, ⚽, 🎮, 🎨, 🎪, etc.) to match the event vibe
+    - Make it FUN first, informative second
+    - Use words kids actually use and get excited about
+    - Emphasize the awesome parts: games, friends, activities, snacks, prizes, etc.
+    - The headline should make kids say "I want to go!"
+    - Pick bright, poppy colors that grab attention
     
-    STEP 1: Create the complete flyer JSON design
+    STEP 1: Create the complete flyer JSON design with fun, kid-friendly content
     
     STEP 2: Call the generate_flyer_package tool with:
     - flyer_data: the JSON object you designed

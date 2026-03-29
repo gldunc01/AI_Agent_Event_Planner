@@ -35,15 +35,13 @@ def load_form_schema():
         if os.path.exists(form_file):
             try:
                 with open(form_file, 'r') as f:
-                    st.success(f"✅ Loaded form from: {form_file}")
+                    # Return form without displaying message (admin will see status in sidebar)
                     return json.load(f)
             except Exception as e:
-                st.warning(f"⚠️ Failed to load form from {form_file}: {e}")
+                # Silent fail, will use default form
+                pass
     
-    st.warning("📝 No form file found. Check possible locations:")
-    st.code("• current_event_form.json (current directory)\n• python-langchain/current_event_form.json")
-    st.info("💡 **WORKAROUND:** Pass form via URL query parameter:\n`?event_name=Basketball&date=April 15&time=2:00 PM&location=Center`")
-    
+    # If no form file found, use default
     return get_default_form()
 
 def get_default_form():
@@ -153,8 +151,21 @@ if st.session_state.get('show_summary', False):
         st.rerun()
     st.stop()  # Stop execution here, don't show form
 
-# Show registration form (CUSTOMER VIEW)
-st.markdown(f"<h1 style='color: purple; text-align: center;'>{event_title}</h1>", unsafe_allow_html=True)
+# Header with logo and reload button
+col_logo, col_title, col_reload = st.columns([1, 3, 1])
+with col_logo:
+    try:
+        st.image("NewburgCOCLogo.png", width=80)
+    except:
+        pass
+
+with col_title:
+    st.markdown(f"<h1 style='color: purple; text-align: center;'>{event_title}</h1>", unsafe_allow_html=True)
+
+with col_reload:
+    if st.button("🔄 Reload", help="Reload the form", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
 if "description" in form_data:
     st.write(form_data["description"])
@@ -225,6 +236,29 @@ def get_all_registrations():
         df = pd.read_sql_query(f"SELECT * FROM {TABLE_NAME}", conn)
     return df
 
+def generate_csv_with_metadata(registrations_df, event_details):
+    """Generate CSV export with event metadata header."""
+    if registrations_df.empty:
+        return None
+    
+    # Create StringIO object for CSV content
+    csv_buffer = StringIO()
+    
+    # Add metadata header
+    csv_buffer.write(f"Event Registration Export\n")
+    csv_buffer.write(f"Event: {event_details.get('event_name', 'Unknown')}\n")
+    csv_buffer.write(f"Date: {event_details.get('date', 'TBD')}\n")
+    csv_buffer.write(f"Time: {event_details.get('time', 'TBD')}\n")
+    csv_buffer.write(f"Location: {event_details.get('location', 'TBD')}\n")
+    csv_buffer.write(f"Exported: {datetime.datetime.now().strftime('%B %d, %Y at %I:%M %p')}\n")
+    csv_buffer.write(f"Total Registrations: {len(registrations_df)}\n")
+    csv_buffer.write("\n")  # Blank line separator
+    
+    # Write the actual CSV data
+    registrations_df.to_csv(csv_buffer, index=False)
+    
+    return csv_buffer.getvalue()
+
 # Create table if needed
 create_table_if_not_exists(form_data.get("fields", []), event_details)
 
@@ -288,13 +322,6 @@ if submitted:
 
 # Sidebar for event details (CUSTOMER) and admin dashboard (ADMIN)
 with st.sidebar:
-    # Try to load logo if available
-    try:
-        st.image("NewburgCOCLogo.png", width=150)
-        st.markdown("---")
-    except:
-        pass
-    
     st.header(event_name)
     
     # Display event details dynamically from form schema (CUSTOMER VIEW)
@@ -340,6 +367,8 @@ with st.sidebar:
     
     st.markdown("---")
     if st.session_state.get('admin_authenticated'):
+        # Show admin status and form loading info
+        st.info(f"✅ Form loaded from: current_event_form.json")
         st.subheader("📊 Admin Dashboard")
         
         # Registrations stats
@@ -359,15 +388,24 @@ with st.sidebar:
                 with st.expander("📋 View All Registrations", expanded=False):
                     st.dataframe(registrations_df, use_container_width=True, height=400)
                 
-                # Export to CSV
-                csv = registrations_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Download CSV",
-                    data=csv,
-                    file_name=f"registrations_{db_event_slug}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+                # Export to CSV with event metadata
+                csv_data = generate_csv_with_metadata(registrations_df, event_details)
+                if csv_data:
+                    # Create filename with event name and timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    event_slug = "".join(c.lower() if c.isalnum() else "_" for c in event_name)[:30]
+                    csv_filename = f"registrations_{event_slug}_{timestamp}.csv"
+                    
+                    st.download_button(
+                        label="📥 Download CSV",
+                        data=csv_data,
+                        file_name=csv_filename,
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                    
+                    # Show info about the export
+                    st.caption(f"📝 CSV includes event metadata and {len(registrations_df)} registrations")
             else:
                 st.info("No registrations yet")
         except Exception as e:
