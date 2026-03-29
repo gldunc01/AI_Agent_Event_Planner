@@ -218,6 +218,9 @@ def get_db_connection():
 
 def create_table_if_not_exists(fields, event_det):
     """Build dynamic SQL table based on form fields and event details."""
+    # Filter out section headers (they don't have 'name' key)
+    actual_fields = [f for f in fields if f.get('type') != 'section_header' and 'name' in f]
+    
     # Build SQL for dynamic fields
     columns = [
         f"{f['name']} TEXT" if f["type"] not in ["number", "date", "checkbox"] else (
@@ -225,7 +228,7 @@ def create_table_if_not_exists(fields, event_det):
                 f"{f['name']} BOOLEAN" if f["type"] == "checkbox" else f"{f['name']} TEXT"
             )
         )
-        for f in fields
+        for f in actual_fields
     ]
     # Add metadata columns (timestamp + event details)
     columns += [
@@ -322,6 +325,12 @@ create_table_if_not_exists(form_data.get("fields", []), event_details)
 with st.form(key="youth_registration"):
     form_values = {}
     for field in form_data.get("fields", []):
+        # Handle section headers
+        if field.get("type") == "section_header":
+            st.divider()
+            st.subheader(field.get("section", "Section"))
+            continue
+        
         f_name = field["name"]
         f_label = field["label"]
         f_type = field.get("type", "text")
