@@ -64,7 +64,18 @@ def get_default_form():
 st.set_page_config(page_title="Youth Registration", layout="wide")
 
 # Automatically load form schema from file (or use default)
-form_data = load_form_schema()
+# Use cache_data to avoid reloading on every Streamlit rerun
+@st.cache_data
+def cached_load_form_schema():
+    return load_form_schema()
+
+form_data = cached_load_form_schema()
+
+# Add refresh button in sidebar for development
+with st.sidebar:
+    if st.button("🔄 Refresh Form Data"):
+        st.cache_data.clear()
+        st.rerun()
 
 # Extract event details safely (with fallback defaults)
 event_details = form_data.get("event_details", {})

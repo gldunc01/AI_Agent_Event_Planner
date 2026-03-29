@@ -242,9 +242,16 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     
     event_details = state.get("event_details", {})
     form_url = event_details.get("form_url", "https://forms.example.com/register")
-    truncated_messages = truncate_messages(state["messages"])
     
-    print(f"🔗 Form will link to: {form_url}")
+    # Check if hosted_app_url is provided - use it instead of form_url
+    hosted_app_url = event_details.get("hosted_app_url")
+    if hosted_app_url:
+        form_url = hosted_app_url
+        print(f"🌐 Using hosted app URL: {form_url}")
+    else:
+        print(f"🔗 Form will link to: {form_url}")
+    
+    truncated_messages = truncate_messages(state["messages"])
     
     # Generate the standardized form with event details
     form_schema = generate_standardized_form(event_details)
@@ -263,7 +270,7 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     print(f"\n💾 Form schema saved to: {form_file_path}")
     print("   form_app.py will automatically load this!")
     
-    # Generate QR code
+    # Generate QR code linking to form_url (or hosted_app_url if provided)
     qr_path = create_qr_png(form_url)
     
     print(f"✅ Form generated with QR code: {qr_path}")
@@ -649,9 +656,14 @@ async def main():
       "event_time": "2:00 PM - 4:00 PM",
       "location": "Community Center",
       "description": "Fun basketball skills training",
-      "form_url": "https://forms.example.com/basketball-2026"
+      "form_url": "https://forms.example.com/basketball-2026",
+      "hosted_app_url": "https://ai-agent-event-planner.streamlit.app (OPTIONAL)"
     }
     """)
+    
+    print("\n💡 HOSTED APP URL:")
+    print("   If you provide 'hosted_app_url', it will override 'form_url' in the QR code and flyer")
+    print("   This should be your deployed Streamlit app URL")
     
     print("\n🎯 The system will automatically:")
     print("  1. Generate a proposal email")
