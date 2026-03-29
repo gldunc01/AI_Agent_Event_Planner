@@ -14,3 +14,4 @@ Pillow>=10.0.0  # For flyer PNG rendering
 streamlit>=1.28.0  # Streamlit UI framework
 json-repair>=0.1.0  # JSON parsing fallback
 pandas>=2.0.0  # Data handling
+PyGithub>=2.0.0  # GitHub API integration for persistent waiver storage

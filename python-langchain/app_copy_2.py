@@ -213,6 +213,36 @@ def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
     """
     Save a record of the signed waiver with participant information.
     
+    This function now supports both local storage and GitHub storage.
+    If GitHub credentials are configured, waivers are stored in GitHub.
+    Otherwise, they're stored locally.
+    
+    Args:
+        participant_info: Dictionary with participant details including waiver_signature
+        event_name: Name of the event
+    
+    Returns:
+        Dictionary with waiver file path and details
+    """
+    # Try GitHub storage first
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_repo = os.getenv("GITHUB_REPO")  # Format: "owner/repo"
+    
+    if github_token and github_repo:
+        try:
+            return save_signed_waiver_to_github(participant_info, event_name, github_token, github_repo)
+        except Exception as e:
+            print(f"⚠️ GitHub waiver save failed: {e}")
+            print("Falling back to local storage...")
+    
+    # Fallback to local storage
+    return save_signed_waiver_locally(participant_info, event_name)
+
+
+def save_signed_waiver_locally(participant_info: Dict, event_name: str) -> dict:
+    """
+    Save a record of the signed waiver locally (fallback).
+    
     Args:
         participant_info: Dictionary with participant details including waiver_signature
         event_name: Name of the event
@@ -254,7 +284,7 @@ def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
     with open(file_path, 'w') as f:
         json.dump(waiver_record, f, indent=2)
     
-    print_banner("📋 WAIVER SIGNED & STORED", "✍️")
+    print_banner("📋 WAIVER SIGNED & STORED (LOCAL)", "✍️")
     print(f"✅ Waiver record saved: {file_path}")
     print(f"👤 Participant: {waiver_record['youth_name']}")
     print(f"📝 Signed by: {waiver_record['waiver_signee']}")
@@ -264,6 +294,76 @@ def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
         "event": event_name,
         "participant": youth_name,
         "timestamp": waiver_record['timestamp']
+    }
+
+
+def save_signed_waiver_to_github(participant_info: Dict, event_name: str, github_token: str, github_repo: str) -> dict:
+    """
+    Save a record of the signed waiver to GitHub repository.
+    
+    Args:
+        participant_info: Dictionary with participant details including waiver_signature
+        event_name: Name of the event
+        github_token: GitHub personal access token
+        github_repo: Repository in format "owner/repo"
+    
+    Returns:
+        Dictionary with GitHub commit details
+    """
+    try:
+        from github import Github
+    except ImportError:
+        raise ImportError("PyGithub not installed. Install with: pip install PyGithub")
+    
+    # Initialize GitHub client
+    g = Github(github_token)
+    repo = g.get_repo(github_repo)
+    
+    # Create waiver record
+    youth_name = participant_info.get('youth_first_last_name', 'Unknown')
+    waiver_record = {
+        "event": event_name,
+        "timestamp": datetime.now().isoformat(),
+        "youth_name": youth_name,
+        "youth_age": participant_info.get('youth_age', 'N/A'),
+        "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
+        "parent_phone": participant_info.get('parent_phone', 'N/A'),
+        "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
+        "waiver_date": participant_info.get('waiver_date', 'N/A'),
+        "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
+        "original_signature_date": participant_info.get('date', 'N/A')
+    }
+    
+    # Generate file path in GitHub
+    event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
+    youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    file_path = f"waivers/{event_slug}/waiver_{youth_slug}_{timestamp}.json"
+    file_content = json.dumps(waiver_record, indent=2)
+    
+    # Commit to GitHub
+    commit_message = f"📋 Waiver signed: {youth_name} - {event_name} ({timestamp})"
+    repo.create_file(
+        path=file_path,
+        message=commit_message,
+        content=file_content,
+        branch="main"
+    )
+    
+    print_banner("📋 WAIVER SIGNED & STORED (GITHUB)", "✍️")
+    print(f"✅ Waiver committed to GitHub: {github_repo}")
+    print(f"📁 File path: {file_path}")
+    print(f"👤 Participant: {youth_name}")
+    print(f"📝 Signed by: {waiver_record['waiver_signee']}")
+    print(f"🔗 GitHub URL: https://github.com/{github_repo}/blob/main/{file_path}")
+    
+    return {
+        "file_path": f"https://github.com/{github_repo}/blob/main/{file_path}",
+        "event": event_name,
+        "participant": youth_name,
+        "timestamp": waiver_record['timestamp'],
+        "github_repo": github_repo
     }
 
 
