@@ -135,6 +135,10 @@ if st.session_state.get('show_summary', False):
     if summary:
         # Display fields dynamically based on form schema
         for field in form_data.get("fields", []):
+            # Skip section headers - they don't have 'name' key
+            if field.get("type") == "section_header":
+                continue
+            
             field_name = field["name"]
             field_label = field["label"]
             field_value = summary.get(field_name, '')
