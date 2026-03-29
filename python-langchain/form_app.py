@@ -309,7 +309,7 @@ if submitted:
 
 # Sidebar for event details (CUSTOMER) and admin dashboard (ADMIN)
 with st.sidebar:
-    st.header("Registration Form")
+    st.header(event_name)
     
     # Display event details dynamically from form schema (CUSTOMER VIEW)
     if event_details:
