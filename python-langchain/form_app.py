@@ -172,6 +172,20 @@ if "description" in form_data:
 else:
     st.info("📋 Fill out the form below to register.")
 
+# Show registration count at the top
+try:
+    reg_count = len(get_all_registrations())
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📝 Registrations", reg_count)
+    with col2:
+        st.metric("👥 Max Capacity", event_details.get('max_participants', 'N/A'))
+    with col3:
+        remaining = event_details.get('max_participants', 0) - reg_count if isinstance(event_details.get('max_participants'), int) else "N/A"
+        st.metric("🔢 Spots Remaining", remaining)
+except:
+    pass
+
 
 # ============================================================================
 # SQLite DATABASE SETUP (Dynamic based on event)
@@ -307,4 +321,31 @@ with st.sidebar:
         st.info("No event details available")
     
     st.markdown("---")
+    
+    # Registrations dashboard
+    st.subheader("📊 Registrations")
+    try:
+        registrations_df = get_all_registrations()
+        if not registrations_df.empty:
+            st.metric("Total Registrations", len(registrations_df))
+            
+            # Show latest registrations
+            if st.checkbox("📋 View All Registrations"):
+                st.dataframe(registrations_df, use_container_width=True)
+            
+            # Export to CSV
+            csv = registrations_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"registrations_{db_event_slug}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No registrations yet")
+    except Exception as e:
+        st.warning(f"Database not ready: {e}")
+    
+    st.markdown("---")
     st.caption("📝 Manual Updates: Run app_copy_2.py to generate a form. Push current_event_form.json to GitHub. App will auto-reload within 60 seconds.")
+    st.caption(f"💾 Database: `{DB_PATH}`")
