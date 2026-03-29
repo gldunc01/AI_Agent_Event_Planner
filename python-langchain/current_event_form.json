@@ -1,11 +1,11 @@
 {
-  "title": "Youth Basketball Clinic-2 Registration Form",
-  "description": "Register for Youth Basketball Clinic-2. Please provide all required information.",
+  "title": "Girls Night Out Registration Form",
+  "description": "Register for Girls Night Out. Please provide all required information.",
   "event_details": {
-    "event_name": "Youth Basketball Clinic-2",
+    "event_name": "Girls Night Out",
     "date": "April 15, 2026",
     "time": "2:00 PM - 4:00 PM",
-    "location": "Community Center",
+    "location": "Newburg Church of Christ",
     "max_participants": 30,
     "age_range": "12-17"
   },
