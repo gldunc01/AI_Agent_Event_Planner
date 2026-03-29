@@ -1,11 +1,11 @@
 {
-  "title": "Boys Night Registration Form",
-  "description": "Register for Boys Night. Please provide all required information.",
+  "title": "Girls Day Registration Form",
+  "description": "Register for Girls Day. Please provide all required information.",
   "event_details": {
-    "event_name": "Boys Night",
-    "date": "2026-04-15",
+    "event_name": "Girls Day",
+    "date": "04-15-2026",
     "time": "3:00 PM - 5:00 PM",
-    "location": "Campsite",
+    "location": "Park",
     "max_participants": 30,
     "age_range": "12-17"
   },

@@ -55,6 +55,64 @@ def print_banner(text: str, symbol: str = "="):
     print(f"{symbol*10} {text.center(40)} {symbol*10}")
     print(line)
 
+def format_event_date(date_str: str) -> str:
+    """
+    Convert event date to MM-DD-YYYY format.
+    
+    Handles multiple input formats:
+    - 2026-04-15 (ISO format)
+    - April 15, 2026 (text format)
+    - 04-15-2026 (already correct)
+    - 4/15/2026 (slash format)
+    
+    Args:
+        date_str: Date string in various formats
+    
+    Returns:
+        Date string in MM-DD-YYYY format
+    """
+    if not date_str or date_str == "TBD":
+        return "TBD"
+    
+    date_str = date_str.strip()
+    
+    try:
+        # Try parsing ISO format (2026-04-15)
+        if '-' in date_str and len(date_str) == 10:
+            parts = date_str.split('-')
+            if len(parts) == 3 and parts[0].isdigit() and len(parts[0]) == 4:
+                # YYYY-MM-DD format
+                year, month, day = parts
+                return f"{month.zfill(2)}-{day.zfill(2)}-{year}"
+            elif len(parts) == 3 and parts[2].isdigit() and len(parts[2]) == 4:
+                # MM-DD-YYYY or DD-MM-YYYY format - check if already correct
+                month, day, year = parts
+                if int(month) <= 12:  # Assume MM-DD-YYYY
+                    return f"{month.zfill(2)}-{day.zfill(2)}-{year}"
+                else:  # DD-MM-YYYY
+                    return f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+        
+        # Try parsing slash format (4/15/2026 or 04/15/2026)
+        if '/' in date_str:
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                if len(parts[2]) == 4:  # MM/DD/YYYY format
+                    month, day, year = parts
+                else:  # YYYY/MM/DD format
+                    year, month, day = parts
+                return f"{month.zfill(2)}-{day.zfill(2)}-{year}"
+        
+        # Try parsing text format (April 15, 2026)
+        if ',' in date_str:
+            from datetime import datetime as dt
+            parsed = dt.strptime(date_str, "%B %d, %Y")
+            return parsed.strftime("%m-%d-%Y")
+        
+    except Exception as e:
+        print(f"⚠️ Could not parse date '{date_str}': {e}")
+    
+    return date_str
+
 
 def generate_standardized_form(event_details: Dict) -> dict:
     """
@@ -71,12 +129,15 @@ def generate_standardized_form(event_details: Dict) -> dict:
     """
     event_name = event_details.get("event_name", "Youth Event")
     
+    # Format the date to MM-DD-YYYY
+    formatted_date = format_event_date(event_details.get("event_date", "TBD"))
+    
     return {
         "title": f"{event_name} Registration Form",
         "description": f"Register for {event_name}. Please provide all required information.",
         "event_details": {
             "event_name": event_name,
-            "date": event_details.get("event_date", "TBD"),
+            "date": formatted_date,
             "time": event_details.get("event_time", "TBD"),
             "location": event_details.get("location", "TBD"),
             "max_participants": event_details.get("max_participants", 30),
@@ -1175,6 +1236,10 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
         - "descriptions": Brief description of each design's style and vibe
     """
     
+    # Format the date for flyer display
+    formatted_date = format_event_date(event_details.get('event_date', 'Coming Soon'))
+    date_time_line = formatted_date + " • " + event_details.get('event_time', 'TBA')
+    
     design_variations = [
         {
             "name": "Modern Clean",
@@ -1182,7 +1247,7 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
             "design_style": "modern",
             "headline": f"🎯 {event_details.get('event_name', event_name)}",
             "subheadline": "Get ready for an amazing experience!",
-            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "date_time_line": date_time_line,
             "location_line": event_details.get('location', 'Location TBA'),
             "body_blurb": "Join us for an incredible event featuring fun, friends, and unforgettable memories. Perfect for ages 12-18!",
             "call_to_action": "Register Now!",
@@ -1194,7 +1259,7 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
             "design_style": "retro",
             "headline": f"🎉 {event_details.get('event_name', event_name).upper()}!",
             "subheadline": "This is going to be LIT! ✨",
-            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "date_time_line": date_time_line,
             "location_line": f"📍 {event_details.get('location', 'Location TBA')}",
             "body_blurb": "Get hyped! This event is packed with activities, games, friends, and good vibes. You don't want to miss this!",
             "call_to_action": "Let's Go! 🚀",
@@ -1206,7 +1271,7 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
             "design_style": "sporty",
             "headline": f"⚡ {event_details.get('event_name', event_name)}",
             "subheadline": "Game On!",
-            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "date_time_line": date_time_line,
             "location_line": f"🏟️ {event_details.get('location', 'Location TBA')}",
             "body_blurb": f"Ready to bring your A-game? Join us for {event_details.get('event_name', 'this event')} and show what you've got!",
             "call_to_action": "Sign Me Up! 🏆",
@@ -1218,7 +1283,7 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
             "design_style": "minimalist",
             "headline": f"{event_details.get('event_name', event_name)}",
             "subheadline": "Be there.",
-            "date_time_line": event_details.get('event_date', 'Coming Soon') + " / " + event_details.get('event_time', 'TBA'),
+            "date_time_line": date_time_line,
             "location_line": event_details.get('location', 'Location TBA'),
             "body_blurb": "An unforgettable experience awaits. Simple. Elegant. Powerful.",
             "call_to_action": "Join Us",
@@ -1230,7 +1295,7 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
             "design_style": "festival",
             "headline": f"🎪 {event_details.get('event_name', event_name)} 🎪",
             "subheadline": "The Event of the Year!",
-            "date_time_line": f"📅 {event_details.get('event_date', 'Coming Soon')} at {event_details.get('event_time', 'TBA')}",
+            "date_time_line": f"📅 {date_time_line}",
             "location_line": f"🎟️ {event_details.get('location', 'Location TBA')}",
             "body_blurb": "Music, games, food, friends, and NON-STOP FUN! This is the event everyone will be talking about!",
             "call_to_action": "Get Your Ticket! 🎟️",
