@@ -153,10 +153,11 @@ def generate_standardized_form(event_details: Dict) -> dict:
             {"name": "consent", "label": "I give permission for my child to participate.", "type": "checkbox", "required": True},
             {"name": "signature", "label": "Parent/Guardian Signature", "type": "text", "required": True},
             {"name": "date", "label": "Date", "type": "date", "required": True},
-            {"section": "WAIVER & LIABILITY RELEASE", "type": "section_header"},
-            {"name": "waiver_acknowledgment", "label": "I have read and understand the liability waiver", "type": "checkbox", "required": True},
-            {"name": "waiver_signature", "label": "Sign your name here (Parent/Guardian)", "type": "text", "required": True},
-            {"name": "waiver_date", "label": "Date", "type": "date", "required": True}
+            # # WAIVER SECTION (DISABLED)
+            # {"section": "WAIVER & LIABILITY RELEASE", "type": "section_header"},
+            # {"name": "waiver_acknowledgment", "label": "I have read and understand the liability waiver", "type": "checkbox", "required": True},
+            # {"name": "waiver_signature", "label": "Sign your name here (Parent/Guardian)", "type": "text", "required": True},
+            # {"name": "waiver_date", "label": "Date", "type": "date", "required": True}
         ]
     }
 
