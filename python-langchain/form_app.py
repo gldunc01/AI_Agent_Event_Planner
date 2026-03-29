@@ -70,7 +70,7 @@ def get_default_form():
         ]
     }
 
-st.set_page_config(page_title="Youth Registration", layout="wide")
+st.set_page_config(page_title="Registration Form", layout="wide")
 
 # Admin password (can be overridden with env variable)
 ADMIN_PASSWORD = os.getenv("FORM_APP_ADMIN_PASSWORD", "admin123")
@@ -151,29 +151,8 @@ if st.session_state.get('show_summary', False):
         st.rerun()
     st.stop()  # Stop execution here, don't show form
 
-# Header with clickable logo and title
-col_logo, col_title = st.columns([1, 4])
-
-with col_logo:
-    # Try multiple possible logo paths
-    logo_paths = [
-        "NewburgCOCLogo.png",
-        "./NewburgCOCLogo.png",
-        "../NewburgCOCLogo.png",
-        "python-langchain/NewburgCOCLogo.png"
-    ]
-    
-    logo_found = False
-    for logo_path in logo_paths:
-        if os.path.exists(logo_path):
-            if st.button("🔄", help="Click to reload form", use_container_width=True):
-                st.cache_data.clear()
-                st.rerun()
-            logo_found = True
-            break
-
-with col_title:
-    st.markdown(f"<h1 style='color: purple; text-align: center;'>{event_title}</h1>", unsafe_allow_html=True)
+# Header with title
+st.markdown(f"<h1 style='color: purple; text-align: center;'>{event_title}</h1>", unsafe_allow_html=True)
 
 if "description" in form_data:
     st.write(form_data["description"])
