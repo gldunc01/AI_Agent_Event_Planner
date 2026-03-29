@@ -52,6 +52,46 @@ def print_banner(text: str, symbol: str = "="):
     print(line)
 
 
+def generate_standardized_form(event_details: Dict) -> dict:
+    """
+    Generate the standardized youth registration form with event details.
+    
+    Form fields are fixed and consistent across all events.
+    Only event details (name, date, time, location) change.
+    
+    Args:
+        event_details: Dictionary with event info (event_name, event_date, event_time, location, etc.)
+    
+    Returns:
+        Dictionary with complete form schema including fields and event details
+    """
+    event_name = event_details.get("event_name", "Youth Event")
+    
+    return {
+        "title": f"{event_name} Registration Form",
+        "description": f"Register for {event_name}. Please provide all required information.",
+        "event_details": {
+            "event_name": event_name,
+            "date": event_details.get("event_date", "TBD"),
+            "time": event_details.get("event_time", "TBD"),
+            "location": event_details.get("location", "TBD"),
+            "max_participants": event_details.get("max_participants", 30),
+            "age_range": event_details.get("age_range", "12-17")
+        },
+        "fields": [
+            {"name": "youth_first_last_name", "label": "Youth First and Last Name", "type": "text", "required": True},
+            {"name": "youth_age", "label": "Youth Age", "type": "number", "required": True},
+            {"name": "parent_first_last_name", "label": "Parent/Guardian First and Last Name", "type": "text", "required": True},
+            {"name": "parent_phone", "label": "Parent/Guardian Phone Number", "type": "tel", "required": True},
+            {"name": "transportation_needed", "label": "Need transportation?", "type": "select", "required": True, "options": [{"label": "Yes", "value": "yes"}, {"label": "No", "value": "no"}]},
+            {"name": "special_needs", "label": "Special accommodations? (If yes, specify)", "type": "textarea", "required": False},
+            {"name": "consent", "label": "I give permission for my child to participate.", "type": "checkbox", "required": True},
+            {"name": "signature", "label": "Parent/Guardian Signature", "type": "text", "required": True},
+            {"name": "date", "label": "Date", "type": "date", "required": True}
+        ]
+    }
+
+
 # --- TOOL CANDIDATE ---
 # This function is a good candidate to expose as a tool:
 # - Input: flyer_data (dict with required fields), qr_path (path to QR PNG)
@@ -206,86 +246,32 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     
     print(f"🔗 Form will link to: {form_url}")
     
-    # Create writer agent with form-specific prompt
-    form_task_prompt = f"""
-    Design a mobile-friendly registration form for this youth event.
-    
-    TASK: Create a form JSON schema with these required fields:
-    {{
-      "title": "string",
-      "description": "string", 
-      "fields": [{{"name": "str", "label": "str", "type": "text|number|tel|textarea|select", "required": bool, "options": []}}]
-    }}
-    
-    REQUIREMENTS:
-    - Title: "{event_details.get('event_name', 'Event')} Registration"
-    - Description: Brief description of the event
-    - Include fields for: youth_first_name, youth_last_name, youth_age, parent_first_name, parent_last_name, parent_phone, youth_phone (optional), special_accommodations, transportation_needed
-    - Make it mobile-friendly and easy to fill
-    
-    STEP 1: Design the complete form JSON schema (make sure all fields are valid)
-    
-    STEP 2: Call the build_registration_form tool with:
-    - llm_output: the complete JSON schema as a string
-    - form_url: "{form_url}"
-    
-    Event Details:
-    {json.dumps(event_details, indent=2)}
-    """
-    
-    form_agent = create_agent(llm, tools=[build_registration_form], system_prompt=form_task_prompt)
-    response = await form_agent.ainvoke({"messages": truncated_messages})
-    
-    # Extract form schema and QR path from tool results
-    form_schema = None
-    qr_path = None
-    form_output = None
-    
-    try:
-        from langchain_core.messages import ToolMessage
-        for msg in response["messages"]:
-            if isinstance(msg, ToolMessage):
-                content = msg.content
-                if isinstance(content, dict) and "form_schema" in content:
-                    form_schema = content.get("form_schema")
-                    qr_path = content.get("qr_path")
-                    break
-                elif isinstance(content, str):
-                    try:
-                        parsed = json.loads(content)
-                        if "form_schema" in parsed:
-                            form_schema = parsed.get("form_schema")
-                            qr_path = parsed.get("qr_path")
-                            break
-                    except:
-                        pass
-            elif msg.type == "ai":
-                form_output = msg.content
-    except:
-        pass
+    # Generate the standardized form with event details
+    form_schema = generate_standardized_form(event_details)
     
     # Display form schema
-    if form_schema:
-        print("\n📋 FORM SCHEMA GENERATED:")
-        print("="*60)
-        print(json.dumps(form_schema, indent=2))
-        print("="*60)
-    elif form_output:
-        print("\n📋 FORM OUTPUT (for reference):")
-        print("="*60)
-        print(form_output[:500] + ("..." if len(form_output) > 500 else ""))
-        print("="*60)
+    print("\n📋 FORM SCHEMA GENERATED:")
+    print("="*60)
+    print(json.dumps(form_schema, indent=2))
+    print("="*60)
     
-    if qr_path:
-        print(f"✅ Form generated with QR code: {qr_path}")
-    else:
-        print("⚠️ QR code path not extracted, will generate new one")
-        qr_path = create_qr_png(form_url)
+    # Save form schema to file for form_app.py to load automatically
+    form_file_path = os.path.join(os.path.dirname(__file__), "current_event_form.json")
+    with open(form_file_path, 'w') as f:
+        json.dump(form_schema, f, indent=2)
+    
+    print(f"\n💾 Form schema saved to: {form_file_path}")
+    print("   form_app.py will automatically load this!")
+    
+    # Generate QR code
+    qr_path = create_qr_png(form_url)
+    
+    print(f"✅ Form generated with QR code: {qr_path}")
     
     print("\n➡️ Moving to flyer generation...")
     return Command(
         update={
-            "messages": response["messages"],
+            "messages": truncated_messages,
             "event_details": event_details,
             "form_url": form_url,
             "qr_path": qr_path
