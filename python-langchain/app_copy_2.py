@@ -24,11 +24,15 @@ load_dotenv()
 # State definition for LangGraph: holds the message history for the agent pipeline.
 class State(TypedDict):
     messages: Annotated[list, add_messages]
+    event_details: dict  # Event info passed through pipeline
+    form_url: str  # URL where the form is hosted (for QR linking)
+    qr_path: str  # Path to generated QR code
 
 # Global agents
 researcher_agent = None
 writer_agent = None
 editor_agent = None
+llm = None  # Global LLM client
 
 def truncate_messages(messages: list, max_messages: int = 5) -> list:
     if len(messages) <= max_messages:
@@ -135,140 +139,254 @@ def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png
     print("📱 View in any image viewer/PDF converter")
     return output_path
 
-async def researcher_node(state: State) -> Command[Literal["writer", "__end__"]]:
-    print_banner("🔍 RESEARCH PHASE")
+async def email_generation_node(state: State) -> Command[Literal["form_generation", "__end__"]]:
+    print_banner("📧 STEP 1: PROPOSAL EMAIL")
     
+    event_details = state.get("event_details", {})
     truncated_messages = truncate_messages(state["messages"])
-    print(f"📄 Feeding {len(truncated_messages)} messages to researcher...")
+    print(f"✉️ Generating proposal email for: {event_details.get('event_name', 'Unnamed Event')}")
     
-    response = await researcher_agent.ainvoke({"messages": truncated_messages})
+    # Create a detailed email generation prompt
+    email_task_prompt = f"""
+    Write a professional proposal email to church leadership about this youth event.
     
-    print("\n📋 RESEARCH SUMMARY:")
-    for msg in response["messages"][-3:]:  # Last 3
+    TASK: Generate a complete proposal email with:
+    - Subject line: "Subject: <meaningful title>"
+    - Event overview and purpose
+    - Date, time, and location details
+    - Expected attendance and logistics
+    - Budget considerations and approval request
+    - Safety and supervision plan
+    - Professional, persuasive tone
+    
+    STEP 1: Write the complete email body first (PLAIN TEXT ONLY, no JSON)
+    
+    STEP 2: Then call the save_proposal_email tool with:
+    - email_body: your complete email text
+    - event_name: "{event_details.get('event_name', 'Unnamed Event')}"
+    - recipient: "pastor@church.org"
+    
+    Event Details:
+    {json.dumps(event_details, indent=2)}
+    """
+    
+    # Create email agent with enhanced prompt
+    email_agent = create_agent(llm, tools=[save_proposal_email], system_prompt=email_task_prompt)
+    response = await email_agent.ainvoke({"messages": truncated_messages})
+    
+    # Extract and display email content
+    email_content = None
+    tool_used = False
+    for msg in response["messages"]:
         if msg.type == "ai":
-            print(f"• {msg.content[:150]}...")
-        elif hasattr(msg, 'name') and msg.name:
-            print(f"• Tool '{msg.name}' used")
+            email_content = msg.content
+        if hasattr(msg, 'name') and msg.name == "save_proposal_email":
+            tool_used = True
     
-    print("\n➡️ Passing to WRITER...")
-    return Command(update={"messages": response["messages"]}, goto="writer")
+    if email_content:
+        print("\n📄 GENERATED EMAIL:")
+        print("="*60)
+        print(email_content[:500] + ("..." if len(email_content) > 500 else ""))
+        print("="*60)
+    
+    if tool_used:
+        print("✅ Email archived successfully")
+    else:
+        print("⚠️ Note: Tool may not have been called - email shown above for reference")
+    
+    print("\n➡️ Moving to form generation...")
+    return Command(update={"messages": response["messages"], "event_details": event_details}, goto="form_generation")
 
-async def writer_node(state: State) -> Command[Literal["editor", "__end__"]]:
-    print_banner("✍️ WRITING PHASE")
+async def form_generation_node(state: State) -> Command[Literal["flyer_generation", "__end__"]]:
+    print_banner("📋 STEP 2: REGISTRATION FORM")
     
-    truncated_messages = truncate_messages(state["messages"])
-    print(f"📝 Writer received context ({len(truncated_messages)} msgs)")
-    
-    response = await writer_agent.ainvoke({"messages": truncated_messages})
-    output = response["messages"][-1].content
-    
-    print("\n📄 WRITER OUTPUT:")
-    print("="*50)
-    print(output)
-    print("="*50)
-    
-    print("\n➡️ Sending to EDITOR for review...")
-    return Command(update={"messages": response["messages"]}, goto="editor")
-
-async def editor_node(state: State) -> Command[Literal["__end__", "writer"]]:
-    print_banner("🔍 EDITOR REVIEW")
-    
-    truncated_messages = truncate_messages(state["messages"])
-    print("📋 Editor checking grammar, accuracy, completeness...")
-    
-    response = await editor_agent.ainvoke({"messages": truncated_messages})
-    feedback = response["messages"][-1].content
-    
-    # Check if the editor used the save_proposal_email tool
-    print("\n📊 Editor Actions:")
-    for msg in response["messages"][-3:]:
-        if hasattr(msg, 'name') and msg.name:
-            print(f"  ✓ Tool '{msg.name}' used")
-        elif msg.type == "ai":
-            print(f"  ✓ Feedback provided")
-    
-    print("\n👀 EDITOR FEEDBACK:")
-    print("="*50)
-    print(feedback)
-    print("="*50)
-    
-    if "REVISE" in feedback.upper() or "REVISE" in feedback.lower():
-        print("\n🔄 EDITOR SAYS: REVISE → Back to WRITER")
-        return Command(update={"messages": response["messages"]}, goto="writer")
-    
-    print("\n✅ EDITOR APPROVES! Final output ready.")
-    print("\n📁 CHECK YOUR LOCAL FILES FOR EXPORTS ↓")
-    return Command(update={"messages": response["messages"]}, goto="__end__")
-
-
-def get_task_prompt(task_type: str, payload: Dict[str, Any]) -> str:
-    # Extract form_url from event_details for flyer prompt
-    event_details = payload.get("event_details", {})
+    event_details = state.get("event_details", {})
     form_url = event_details.get("form_url", "https://forms.example.com/register")
+    truncated_messages = truncate_messages(state["messages"])
     
-    prompts = {
-        "youth_registration_form": f"""
-    You are a form designer for youth ministry events.
-    Design a mobile-friendly registration form using the build_registration_form tool.
+    print(f"🔗 Form will link to: {form_url}")
     
-    STEP 1: First, design the form JSON schema with these required fields:
+    # Create writer agent with form-specific prompt
+    form_task_prompt = f"""
+    Design a mobile-friendly registration form for this youth event.
+    
+    TASK: Create a form JSON schema with these required fields:
     {{
       "title": "string",
       "description": "string", 
       "fields": [{{"name": "str", "label": "str", "type": "text|number|tel|textarea|select", "required": bool, "options": []}}]
     }}
     
-    Include fields for: youth first/last/age, parent first/last/phone, youth_phone(opt), accommodations, transportation.
+    REQUIREMENTS:
+    - Title: "{event_details.get('event_name', 'Event')} Registration"
+    - Description: Brief description of the event
+    - Include fields for: youth_first_name, youth_last_name, youth_age, parent_first_name, parent_last_name, parent_phone, youth_phone (optional), special_accommodations, transportation_needed
+    - Make it mobile-friendly and easy to fill
     
-    STEP 2: Once you have created the JSON schema object, call the build_registration_form tool with:
-    - llm_output: the JSON schema you designed (as a string)
-    - form_url: \"{form_url}\"
+    STEP 1: Design the complete form JSON schema (make sure all fields are valid)
     
-    The tool will automatically extract the form schema and generate a QR code for you.
-    """,
-        
-        "flyer": f"""
-    Create flyer content for youth events using the generate_flyer_package tool.
+    STEP 2: Call the build_registration_form tool with:
+    - llm_output: the complete JSON schema as a string
+    - form_url: "{form_url}"
     
-    STEP 1: First, design the flyer JSON with these required fields:
+    Event Details:
+    {json.dumps(event_details, indent=2)}
+    """
+    
+    form_agent = create_agent(llm, tools=[build_registration_form], system_prompt=form_task_prompt)
+    response = await form_agent.ainvoke({"messages": truncated_messages})
+    
+    # Extract form schema and QR path from tool results
+    form_schema = None
+    qr_path = None
+    form_output = None
+    
+    try:
+        from langchain_core.messages import ToolMessage
+        for msg in response["messages"]:
+            if isinstance(msg, ToolMessage):
+                content = msg.content
+                if isinstance(content, dict) and "form_schema" in content:
+                    form_schema = content.get("form_schema")
+                    qr_path = content.get("qr_path")
+                    break
+                elif isinstance(content, str):
+                    try:
+                        parsed = json.loads(content)
+                        if "form_schema" in parsed:
+                            form_schema = parsed.get("form_schema")
+                            qr_path = parsed.get("qr_path")
+                            break
+                    except:
+                        pass
+            elif msg.type == "ai":
+                form_output = msg.content
+    except:
+        pass
+    
+    # Display form schema
+    if form_schema:
+        print("\n📋 FORM SCHEMA GENERATED:")
+        print("="*60)
+        print(json.dumps(form_schema, indent=2))
+        print("="*60)
+    elif form_output:
+        print("\n📋 FORM OUTPUT (for reference):")
+        print("="*60)
+        print(form_output[:500] + ("..." if len(form_output) > 500 else ""))
+        print("="*60)
+    
+    if qr_path:
+        print(f"✅ Form generated with QR code: {qr_path}")
+    else:
+        print("⚠️ QR code path not extracted, will generate new one")
+        qr_path = create_qr_png(form_url)
+    
+    print("\n➡️ Moving to flyer generation...")
+    return Command(
+        update={
+            "messages": response["messages"],
+            "event_details": event_details,
+            "form_url": form_url,
+            "qr_path": qr_path
+        },
+        goto="flyer_generation"
+    )
+
+async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
+    print_banner("🎨 STEP 3: FLYER WITH QR CODE")
+    
+    event_details = state.get("event_details", {})
+    form_url = state.get("form_url", event_details.get("form_url", "https://forms.example.com/register"))
+    qr_path = state.get("qr_path")
+    truncated_messages = truncate_messages(state["messages"])
+    
+    print(f"🎯 Creating flyer for: {event_details.get('event_name', 'Unnamed Event')}")
+    if qr_path:
+        print(f"📱 Using existing QR code: {qr_path}")
+    else:
+        print(f"📱 Will generate new QR linking to: {form_url}")
+    
+    # Create writer agent with flyer-specific prompt
+    flyer_task_prompt = f"""
+    Create an attractive and eye-catching flyer for this youth event.
+    
+    TASK: Design a flyer JSON schema with these required fields:
     {{
-      "headline": "str",
-      "subheadline": "str", 
-      "date_time_line": "str",
-      "location_line": "str",
-      "body_blurb": "str",
-      "call_to_action": "str",
-      "color_scheme": {{"primary": "#hex", "secondary": "#hex", "accent": "#hex"}}
+      "headline": "str (main event title, short and catchy)",
+      "subheadline": "str (tagline or subtitle)", 
+      "date_time_line": "str (when is the event?)",
+      "location_line": "str (where is the event?)",
+      "body_blurb": "str (short description of the event)",
+      "call_to_action": "str (what should people do? e.g., 'Scan QR to Register!')",
+      "color_scheme": {{"primary": "#hex (background color)", "secondary": "#hex", "accent": "#hex (highlight color)"}}
     }}
     
-    Use short, energetic text. Mention QR registration in the content.
+    REQUIREMENTS:
+    - Use bright, engaging colors (primary should be vibrant)
+    - Mention that scanning the QR code registers attendees
+    - Keep text short and energetic
+    - Target audience: youth and parents
+    - Include date/time/location clearly
     
-    STEP 2: Once you have created the JSON object, call the generate_flyer_package tool with:
+    STEP 1: Create the complete flyer JSON design
+    
+    STEP 2: Call the generate_flyer_package tool with:
     - flyer_data: the JSON object you designed
-    - form_url: \"{form_url}\"
+    - form_url: "{form_url}"
     
-    The tool will automatically generate the QR code PNG and flyer PNG for you.
-    """,
-        
-        "proposal_email": f"""
+    Event Details:
+    {json.dumps(event_details, indent=2)}
+    """
+    
+    flyer_agent = create_agent(llm, tools=[generate_flyer_package], system_prompt=flyer_task_prompt)
+    response = await flyer_agent.ainvoke({"messages": truncated_messages})
+    
+    # Extract flyer output
+    flyer_output = None
+    for msg in response["messages"]:
+        if msg.type == "ai":
+            flyer_output = msg.content
+    
+    if flyer_output:
+        print("\n🎨 FLYER OUTPUT:")
+        print("="*60)
+        print(flyer_output[:500] + ("..." if len(flyer_output) > 500 else ""))
+        print("="*60)
+    
+    print("✅ Flyer generated with embedded QR code")
+    print("\n📁 All files exported to current directory")
+    
+    return Command(
+        update={
+            "messages": response["messages"],
+            "event_details": event_details,
+            "form_url": form_url,
+            "qr_path": qr_path
+        },
+        goto="__end__"
+    )
+
+
+def get_task_prompt(task_type: str, payload: Dict[str, Any]) -> str:
+    # Simplified - now only used internally
+    event_details = payload.get("event_details", {})
+    
+    # Proposal email prompt
+    email_prompt = f"""
     Write a professional proposal email to church leadership.
     Output PLAIN TEXT email body ONLY (no JSON), ready to send.
 
-    STEP 1: Write the email with:
+    Structure:
     - Subject line as first line: "Subject: <title>"
     - Include: event details, safety/logistics, budget, approval ask
     - Professional tone, clear and concise
     
-    STEP 2: After writing the email, call the save_proposal_email tool to archive it:
-    - email_body: your complete email text
-    - event_name: "{event_details.get('event_name', 'Unnamed Event')}"
-    - recipient: (use default or customize if needed)
+    After writing, call the save_proposal_email tool to archive it.
     
-    The tool will automatically save the email to a timestamped file for your records.
+    Event: {json.dumps(event_details, indent=2)}
     """
-    }
-    base_prompt = prompts.get(task_type, "You are a skilled content writer.")
-    return base_prompt + f"\n\nEvent details: {json.dumps(payload, indent=2)}"
+    return email_prompt
 
 def extractjsonfromtext(text: str) -> dict:
     """Extract JSON from LLM output with multiple strategies."""
@@ -496,14 +614,14 @@ def save_proposal_email(email_body: str, event_name: str = "Unnamed Event", reci
 
 
 async def main():
-    global researcher_agent, writer_agent, editor_agent
+    global researcher_agent, writer_agent, editor_agent, llm
     
-    print_banner("🚀 EVENT PLANNER ASSISTANT v2.1 (DEBUG MODE)", "✨")
+    print_banner("🚀 UNIFIED EVENT PLANNER v3.0", "✨")
+    print("📝 Workflow: Proposal Email → Registration Form → Flyer with QR")
     
     # API checks
     missing = []
     if not os.getenv("GITHUB_TOKEN"): missing.append("GITHUB_TOKEN")
-    if not os.getenv("TAVILY_API_KEY"): missing.append("TAVILY_API_KEY (optional)")
     
     if missing:
         print("⚠️", ", ".join(missing), "→ Add to .env")
@@ -512,186 +630,89 @@ async def main():
                     base_url="https://models.github.ai/inference",
                     api_key=os.getenv("GITHUB_TOKEN"))
     
-    # Load prompts
-    prompts = {"researcher": "You are a research assistant.", "writer": "", "editor": "You are an editor."}
-    for fname, key in [("researcher.json", "researcher"), ("writer.json", "writer"), ("editor.json", "editor")]:
+    # Base prompts
+    base_prompts = {
+        "email": "You are a professional proposal writer for youth ministry events.",
+        "form": "You are a form designer for youth ministry registration.",
+        "flyer": "You are a creative flyer designer for youth events."
+    }
+    
+    # Try to load from external files
+    for fname, key in [("email_system.txt", "email"), ("form_system.txt", "form"), ("flyer_system.txt", "flyer")]:
         try:
-            prompts[key] = json.load(open(fname))["template"]
+            with open(fname) as f:
+                base_prompts[key] = f.read()
         except:
-            print(f"⚠️ {fname} missing → using fallback")
+            pass
     
-    # ===== CENTRALIZED TOOL WIRING =====
-    # Task execution is decomposed into specialized agents with specific tools:
-    # - Researcher: Uses external MCP tools (Tavily) for web search and research
-    # - Writer: Uses flyer and form generation tools for content creation
-    # - Editor: Uses email archival tool for saving finalized proposals
-    # Tools handle file I/O and generation; task_type influences prompts.
-    
-    # Writer tools: content generation + file creation
-    writer_tools = [generate_flyer_package, build_registration_form]
-    
-    # Editor tools: email archival
-    editor_tools = [save_proposal_email]
-    
-    # Researcher tools: from MCP client (web search, etc.)
-    researcher_tools = []
-    if os.getenv("TAVILY_API_KEY"):
-        research_client = MultiServerMCPClient({
-            "tavily": {"transport": "http", "url": f"https://mcp.tavily.com/mcp/?tavilyApiKey={os.getenv('TAVILY_API_KEY')}"}
-        })
-        researcher_tools = await research_client.get_tools()
-        print(f"🔍 Researcher tools loaded: {len(researcher_tools)}")
-    
-    # Create agents with their respective tools
-    researcher_agent = create_agent(llm, tools=researcher_tools, system_prompt=prompts["researcher"])
-    editor_agent = create_agent(llm, tools=editor_tools, system_prompt=prompts["editor"])
-    
-    # Graph: Researcher → Writer → Editor (with fallback from Editor to Writer)
-    # Task types do NOT influence graph structure; they only affect writer prompts.
+    # Build the unified graph nodes (each node creates its own agent with detailed prompts)
     builder = StateGraph(State)
-    builder.add_node("researcher", researcher_node).add_node("writer", writer_node).add_node("editor", editor_node)
-    builder.add_edge(START, "researcher")
+    builder.add_node("email_generation", email_generation_node)
+    builder.add_node("form_generation", form_generation_node)
+    builder.add_node("flyer_generation", flyer_generation_node)
+    
+    builder.add_edge(START, "email_generation")
+    
     graph = builder.compile()
     
-    print("\n📋 USAGE: Paste JSON with 'task_type':")
-    print("  • 'youth_registration_form' → Form JSON + QR")
-    print("  • 'flyer' → Flyer JSON + PNG + QR") 
-    print("  • 'proposal_email' → Ready-to-send email")
-    print("\n🎯 Basketball clinic example ready to copy ↓")
+    print("\n📋 INPUT FORMAT (JSON with event details):")
+    print("""
+    {
+      "event_name": "Youth Basketball Clinic",
+      "event_date": "April 15, 2026",
+      "event_time": "2:00 PM - 4:00 PM",
+      "location": "Community Center",
+      "description": "Fun basketball skills training",
+      "form_url": "https://forms.example.com/basketball-2026"
+    }
+    """)
     
-
+    print("\n🎯 The system will automatically:")
+    print("  1. Generate a proposal email")
+    print("  2. Build a registration form")
+    print("  3. Create a QR code linking to the form")
+    print("  4. Generate a flyer with the QR code embedded")
+    
     while True:
         try:
-            payload_str = input("\n📝 JSON payload (or 'quit'): ").strip()
-            if payload_str.lower() in ['quit', 'exit', 'q']: break
+            payload_str = input("\n📝 Event details JSON (or 'quit'): ").strip()
+            if payload_str.lower() in ['quit', 'exit', 'q']: 
+                break
             
             payload = json.loads(payload_str)
-            task_type = payload.get("task_type")
-            if not task_type:
-                print("❌ Add 'task_type' to JSON")
+            event_details = payload
+            
+            # Validate required fields
+            required = ["event_name", "form_url"]
+            missing = [f for f in required if f not in event_details]
+            if missing:
+                print(f"❌ Missing fields: {', '.join(missing)}")
                 continue
             
-            print(f"\n🎯 TASK: {task_type.upper()}")
-            print(f"📊 Event: {payload.get('event_details', {}).get('event_name', 'Unnamed')}")
-            
-            # Create writer agent with task-specific prompt but shared tools
-            # The prompt guides the writer on what to create (flyer, form, or email);
-            # the tools enable it to call external functions for file generation.
-            writer_prompt = get_task_prompt(task_type, payload)
-            writer_agent = create_agent(llm, tools=writer_tools, system_prompt=writer_prompt)
-            
-            # RUN PIPELINE
+            print(f"\n🎯 Processing: {event_details['event_name']}")
             print_banner("⚙️ PIPELINE STARTING")
+            
+            # Run the unified pipeline
             result = await graph.ainvoke({
-                "messages": [HumanMessage(content=f"TASK={task_type}\n{payload_str}")]
+                "messages": [HumanMessage(content=json.dumps(event_details))],
+                "event_details": event_details,
+                "form_url": event_details.get("form_url"),
+                "qr_path": ""
             })
             
-            output = result["messages"][-1].content
-            print_banner("✅ PIPELINE COMPLETE")
+            print_banner("✅ COMPLETE PIPELINE FINISHED")
+            print("\n📁 All outputs generated:")
+            print("  📧 proposal_email_*.txt")
+            print("  📋 Registration form schema")
+            print("  📱 event_qr.png")
+            print("  🎨 flyer.png")
             
-            # POST-PROCESS EXPORTS
-            # Most heavy lifting is done by tools (file generation, QR creation, etc.).
-            # Post-processing here handles:
-            # - Extracting tool results from agent messages (optional)
-            # - Displaying final outputs to user
-            # - Fallback extraction if tools weren't called
-            
-            event_details = payload.get("event_details", {})
-            form_url = event_details.get("form_url", "https://forms.example.com/register")
-            
-            # --- TASK TYPE: 'flyer' and 'basketball_clinic' ---
-            # Writer agent calls generate_flyer_package tool.
-            # Tool handles QR + PNG generation automatically.
-            # This branch displays results and provides fallback.
-            if task_type in ["flyer", "basketball_clinic"]:
-                print_banner("🎨 FLYER EXPORT MODE")
-                print("📄 Writer output (for reference):")
-                print(output[:500] + "..." if len(output) > 500 else output)
-                
-                # Check if tool was called successfully
-                tool_called = any(hasattr(msg, 'name') and msg.name == "generate_flyer_package" for msg in result["messages"])
-                
-                if tool_called:
-                    print("\n✅ Writer used generate_flyer_package tool")
-                    print("📁 Files should be saved in current directory")
-                    # Look for the tool result message
-                    for msg in result["messages"]:
-                        if hasattr(msg, 'tool_call_id'):
-                            print(f"  ✓ Tool execution confirmed")
-                else:
-                    # Fallback: try to extract and generate manually
-                    print("\n⚠️ Tool was not called. Attempting fallback extraction...")
-                    qr_path = create_qr_png(form_url)
-                    try:
-                        flyer_data = extractjsonfromtext(output)
-                        print("✅ Parsed JSON from output!")
-                        flyer_path = save_flyer_png(flyer_data, qr_path)
-                        print(f"\n🎉 FLYER PACKAGE EXPORTED (fallback):")
-                        print(f"  🖼️  Flyer: {flyer_path}")
-                        print(f"  📱  QR Code: {qr_path}")
-                    except (ValueError, KeyError, TypeError) as e:
-                        print(f"❌ Fallback failed: {e}")
-                        print("\n💡 Please manually copy the JSON from the output above and save it.")
-            
-            # --- TASK TYPE: 'youth_registration_form' ---
-            # Writer agent calls build_registration_form tool.
-            # Tool handles JSON extraction + QR generation automatically.
-            # This branch displays results and provides fallback.
-            elif task_type == "youth_registration_form":
-                print("\n📋 FORM GENERATION MODE")
-                print("📄 Writer output (for reference):")
-                print(output[:500] + "..." if len(output) > 500 else output)
-                
-                # Check if tool was called successfully
-                tool_called = any(hasattr(msg, 'name') and msg.name == "build_registration_form" for msg in result["messages"])
-                
-                if tool_called:
-                    print("\n✅ Writer used build_registration_form tool")
-                    print("📁 Files should be saved in current directory")
-                else:
-                    # Fallback: try to extract and generate manually
-                    print("\n⚠️ Tool was not called. Attempting fallback extraction...")
-                    try:
-                        form_data = extractjsonfromtext(output)
-                        print("✅ Parsed form schema!")
-                        print("📋 Form JSON (copy to SurveyHeart/Streamlit):")
-                        print(json.dumps(form_data, indent=2))
-                        qr_path = create_qr_png(form_url)
-                        print(f"\n📁 QR Code saved: {qr_path}")
-                    except (ValueError, KeyError, TypeError) as e:
-                        print(f"❌ Fallback failed: {e}")
-                        print("\n💡 Please manually copy the JSON from the output above.")
-            
-            # --- TASK TYPE: 'proposal_email' ---
-            # Editor agent calls save_proposal_email tool.
-            # Tool handles email file archival (with recipient + timestamp).
-            # This branch displays the email and confirms file save.
-            elif task_type == "proposal_email":
-                print("\n📧 EMAIL READY - COPY TO OUTLOOK/GMAIL:")
-                print("-"*50)
-                print(output)
-                print("-"*50)
-                
-                # Check if editor called the save tool
-                tool_called = any(hasattr(msg, 'name') and msg.name == "save_proposal_email" for msg in result["messages"])
-                
-                if tool_called:
-                    print("\n✅ Editor archived the email")
-                    print("📁 Email file should be saved in current directory with timestamp")
-                else:
-                    print("\n💡 Tip: Email tool could have been called by editor to auto-archive.")
-            
-            # --- OTHER/UNKNOWN TASK TYPE ---
-            # Behavior:
-            #   - Just print the output
-            else:
-                print("\n📋 OUTPUT (copy as needed):")
-                print(output)
-                
         except json.JSONDecodeError:
             print("❌ Invalid JSON format")
         except Exception as e:
             print(f"💥 Error: {e}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(main())
