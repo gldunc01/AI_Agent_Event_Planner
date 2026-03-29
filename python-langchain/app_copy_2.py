@@ -162,210 +162,210 @@ def generate_standardized_form(event_details: Dict) -> dict:
     }
 
 
-def setup_waiver_directory() -> str:
-    """Create directory structure for storing waivers."""
-    waivers_dir = os.path.join(os.path.dirname(__file__), "waivers")
-    if not os.path.exists(waivers_dir):
-        os.makedirs(waivers_dir)
-    return waivers_dir
+# def setup_waiver_directory() -> str:
+#     """Create directory structure for storing waivers."""
+#     waivers_dir = os.path.join(os.path.dirname(__file__), "waivers")
+#     if not os.path.exists(waivers_dir):
+#         os.makedirs(waivers_dir)
+#     return waivers_dir
 
 
-def copy_waiver_pdf(waiver_source: str = None) -> str:
-    """
-    Copy the waiver PDF to the waivers directory if it exists.
+# def copy_waiver_pdf(waiver_source: str = None) -> str:
+#     """
+#     Copy the waiver PDF to the waivers directory if it exists.
     
-    Args:
-        waiver_source: Path to the waiver PDF file. If None, looks for Waiver.pdf in common locations.
+#     Args:
+#         waiver_source: Path to the waiver PDF file. If None, looks for Waiver.pdf in common locations.
     
-    Returns:
-        Path to the waiver PDF in the waivers directory
-    """
-    waivers_dir = setup_waiver_directory()
-    waiver_dest = os.path.join(waivers_dir, "Waiver.pdf")
+#     Returns:
+#         Path to the waiver PDF in the waivers directory
+#     """
+#     waivers_dir = setup_waiver_directory()
+#     waiver_dest = os.path.join(waivers_dir, "Waiver.pdf")
     
-    # If already copied, return path
-    if os.path.exists(waiver_dest):
-        return waiver_dest
+#     # If already copied, return path
+#     if os.path.exists(waiver_dest):
+#         return waiver_dest
     
-    # If source provided, copy it
-    if waiver_source and os.path.exists(waiver_source):
-        shutil.copy2(waiver_source, waiver_dest)
-        print(f"✅ Waiver PDF stored at: {waiver_dest}")
-        return waiver_dest
+#     # If source provided, copy it
+#     if waiver_source and os.path.exists(waiver_source):
+#         shutil.copy2(waiver_source, waiver_dest)
+#         print(f"✅ Waiver PDF stored at: {waiver_dest}")
+#         return waiver_dest
     
-    # Try common locations
-    common_paths = [
-        os.path.expanduser("~/OneDrive/Desktop/Youth Ministry/Waiver.pdf"),
-        os.path.expanduser("~/Desktop/Waiver.pdf"),
-        os.path.join(os.path.dirname(__file__), "Waiver.pdf"),
-    ]
+#     # Try common locations
+#     common_paths = [
+#         os.path.expanduser("~/OneDrive/Desktop/Youth Ministry/Waiver.pdf"),
+#         os.path.expanduser("~/Desktop/Waiver.pdf"),
+#         os.path.join(os.path.dirname(__file__), "Waiver.pdf"),
+#     ]
     
-    for path in common_paths:
-        if os.path.exists(path):
-            shutil.copy2(path, waiver_dest)
-            print(f"✅ Waiver PDF stored at: {waiver_dest}")
-            return waiver_dest
+#     for path in common_paths:
+#         if os.path.exists(path):
+#             shutil.copy2(path, waiver_dest)
+#             print(f"✅ Waiver PDF stored at: {waiver_dest}")
+#             return waiver_dest
     
-    print("⚠️ Waiver PDF not found - skipping waiver storage setup")
-    return waiver_dest
+#     print("⚠️ Waiver PDF not found - skipping waiver storage setup")
+#     return waiver_dest
 
 
-def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
-    """
-    Save a record of the signed waiver with participant information.
+# def save_signed_waiver(participant_info: Dict, event_name: str) -> dict:
+#     """
+#     Save a record of the signed waiver with participant information.
     
-    This function now supports both local storage and GitHub storage.
-    If GitHub credentials are configured, waivers are stored in GitHub.
-    Otherwise, they're stored locally.
+#     This function now supports both local storage and GitHub storage.
+#     If GitHub credentials are configured, waivers are stored in GitHub.
+#     Otherwise, they're stored locally.
     
-    Args:
-        participant_info: Dictionary with participant details including waiver_signature
-        event_name: Name of the event
+#     Args:
+#         participant_info: Dictionary with participant details including waiver_signature
+#         event_name: Name of the event
     
-    Returns:
-        Dictionary with waiver file path and details
-    """
-    # Try GitHub storage first
-    github_token = os.getenv("GITHUB_TOKEN")
-    github_repo = os.getenv("GITHUB_REPO")  # Format: "owner/repo"
+#     Returns:
+#         Dictionary with waiver file path and details
+#     """
+#     # Try GitHub storage first
+#     github_token = os.getenv("GITHUB_TOKEN")
+#     github_repo = os.getenv("GITHUB_REPO")  # Format: "owner/repo"
     
-    if github_token and github_repo:
-        try:
-            return save_signed_waiver_to_github(participant_info, event_name, github_token, github_repo)
-        except Exception as e:
-            print(f"⚠️ GitHub waiver save failed: {e}")
-            print("Falling back to local storage...")
+#     if github_token and github_repo:
+#         try:
+#             return save_signed_waiver_to_github(participant_info, event_name, github_token, github_repo)
+#         except Exception as e:
+#             print(f"⚠️ GitHub waiver save failed: {e}")
+#             print("Falling back to local storage...")
     
-    # Fallback to local storage
-    return save_signed_waiver_locally(participant_info, event_name)
+#     # Fallback to local storage
+#     return save_signed_waiver_locally(participant_info, event_name)
 
 
-def save_signed_waiver_locally(participant_info: Dict, event_name: str) -> dict:
-    """
-    Save a record of the signed waiver locally (fallback).
+# def save_signed_waiver_locally(participant_info: Dict, event_name: str) -> dict:
+#     """
+#     Save a record of the signed waiver locally (fallback).
     
-    Args:
-        participant_info: Dictionary with participant details including waiver_signature
-        event_name: Name of the event
+#     Args:
+#         participant_info: Dictionary with participant details including waiver_signature
+#         event_name: Name of the event
     
-    Returns:
-        Dictionary with waiver file path and details
-    """
-    waivers_dir = setup_waiver_directory()
+#     Returns:
+#         Dictionary with waiver file path and details
+#     """
+#     waivers_dir = setup_waiver_directory()
     
-    # Create event-specific subdirectory
-    event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
-    event_waivers_dir = os.path.join(waivers_dir, event_slug)
-    if not os.path.exists(event_waivers_dir):
-        os.makedirs(event_waivers_dir)
+#     # Create event-specific subdirectory
+#     event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
+#     event_waivers_dir = os.path.join(waivers_dir, event_slug)
+#     if not os.path.exists(event_waivers_dir):
+#         os.makedirs(event_waivers_dir)
     
-    # Generate timestamp and filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    youth_name = participant_info.get('youth_first_last_name', 'Unknown')
-    youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
+#     # Generate timestamp and filename
+#     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#     youth_name = participant_info.get('youth_first_last_name', 'Unknown')
+#     youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
     
-    filename = f"waiver_{youth_slug}_{timestamp}.json"
-    file_path = os.path.join(event_waivers_dir, filename)
+#     filename = f"waiver_{youth_slug}_{timestamp}.json"
+#     file_path = os.path.join(event_waivers_dir, filename)
     
-    # Create waiver record
-    waiver_record = {
-        "event": event_name,
-        "timestamp": datetime.now().isoformat(),
-        "youth_name": participant_info.get('youth_first_last_name', 'N/A'),
-        "youth_age": participant_info.get('youth_age', 'N/A'),
-        "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
-        "parent_phone": participant_info.get('parent_phone', 'N/A'),
-        "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
-        "waiver_date": participant_info.get('waiver_date', 'N/A'),
-        "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
-        "original_signature_date": participant_info.get('date', 'N/A')
-    }
+#     # Create waiver record
+#     waiver_record = {
+#         "event": event_name,
+#         "timestamp": datetime.now().isoformat(),
+#         "youth_name": participant_info.get('youth_first_last_name', 'N/A'),
+#         "youth_age": participant_info.get('youth_age', 'N/A'),
+#         "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
+#         "parent_phone": participant_info.get('parent_phone', 'N/A'),
+#         "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
+#         "waiver_date": participant_info.get('waiver_date', 'N/A'),
+#         "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
+#         "original_signature_date": participant_info.get('date', 'N/A')
+#     }
     
-    # Save to JSON
-    with open(file_path, 'w') as f:
-        json.dump(waiver_record, f, indent=2)
+#     # Save to JSON
+#     with open(file_path, 'w') as f:
+#         json.dump(waiver_record, f, indent=2)
     
-    print_banner("📋 WAIVER SIGNED & STORED (LOCAL)", "✍️")
-    print(f"✅ Waiver record saved: {file_path}")
-    print(f"👤 Participant: {waiver_record['youth_name']}")
-    print(f"📝 Signed by: {waiver_record['waiver_signee']}")
+#     print_banner("📋 WAIVER SIGNED & STORED (LOCAL)", "✍️")
+#     print(f"✅ Waiver record saved: {file_path}")
+#     print(f"👤 Participant: {waiver_record['youth_name']}")
+#     print(f"📝 Signed by: {waiver_record['waiver_signee']}")
     
-    return {
-        "file_path": file_path,
-        "event": event_name,
-        "participant": youth_name,
-        "timestamp": waiver_record['timestamp']
-    }
+#     return {
+#         "file_path": file_path,
+#         "event": event_name,
+#         "participant": youth_name,
+#         "timestamp": waiver_record['timestamp']
+#     }
 
 
-def save_signed_waiver_to_github(participant_info: Dict, event_name: str, github_token: str, github_repo: str) -> dict:
-    """
-    Save a record of the signed waiver to GitHub repository.
+# def save_signed_waiver_to_github(participant_info: Dict, event_name: str, github_token: str, github_repo: str) -> dict:
+#     """
+#     Save a record of the signed waiver to GitHub repository.
     
-    Args:
-        participant_info: Dictionary with participant details including waiver_signature
-        event_name: Name of the event
-        github_token: GitHub personal access token
-        github_repo: Repository in format "owner/repo"
+#     Args:
+#         participant_info: Dictionary with participant details including waiver_signature
+#         event_name: Name of the event
+#         github_token: GitHub personal access token
+#         github_repo: Repository in format "owner/repo"
     
-    Returns:
-        Dictionary with GitHub commit details
-    """
-    try:
-        from github import Github
-    except ImportError:
-        raise ImportError("PyGithub not installed. Install with: pip install PyGithub")
+#     Returns:
+#         Dictionary with GitHub commit details
+#     """
+#     try:
+#         from github import Github
+#     except ImportError:
+#         raise ImportError("PyGithub not installed. Install with: pip install PyGithub")
     
-    # Initialize GitHub client
-    g = Github(github_token)
-    repo = g.get_repo(github_repo)
+#     # Initialize GitHub client
+#     g = Github(github_token)
+#     repo = g.get_repo(github_repo)
     
-    # Create waiver record
-    youth_name = participant_info.get('youth_first_last_name', 'Unknown')
-    waiver_record = {
-        "event": event_name,
-        "timestamp": datetime.now().isoformat(),
-        "youth_name": youth_name,
-        "youth_age": participant_info.get('youth_age', 'N/A'),
-        "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
-        "parent_phone": participant_info.get('parent_phone', 'N/A'),
-        "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
-        "waiver_date": participant_info.get('waiver_date', 'N/A'),
-        "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
-        "original_signature_date": participant_info.get('date', 'N/A')
-    }
+#     # Create waiver record
+#     youth_name = participant_info.get('youth_first_last_name', 'Unknown')
+#     waiver_record = {
+#         "event": event_name,
+#         "timestamp": datetime.now().isoformat(),
+#         "youth_name": youth_name,
+#         "youth_age": participant_info.get('youth_age', 'N/A'),
+#         "parent_name": participant_info.get('parent_first_last_name', 'N/A'),
+#         "parent_phone": participant_info.get('parent_phone', 'N/A'),
+#         "waiver_signee": participant_info.get('waiver_signature', 'N/A'),
+#         "waiver_date": participant_info.get('waiver_date', 'N/A'),
+#         "waiver_acknowledged": participant_info.get('waiver_acknowledgment', False),
+#         "original_signature_date": participant_info.get('date', 'N/A')
+#     }
     
-    # Generate file path in GitHub
-    event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
-    youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#     # Generate file path in GitHub
+#     event_slug = re.sub(r'[^a-z0-9]+', '_', event_name.lower()).strip('_')
+#     youth_slug = re.sub(r'[^a-z0-9]+', '_', youth_name.lower()).strip('_')
+#     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    file_path = f"waivers/{event_slug}/waiver_{youth_slug}_{timestamp}.json"
-    file_content = json.dumps(waiver_record, indent=2)
+#     file_path = f"waivers/{event_slug}/waiver_{youth_slug}_{timestamp}.json"
+#     file_content = json.dumps(waiver_record, indent=2)
     
-    # Commit to GitHub
-    commit_message = f"📋 Waiver signed: {youth_name} - {event_name} ({timestamp})"
-    repo.create_file(
-        path=file_path,
-        message=commit_message,
-        content=file_content,
-        branch="main"
-    )
+#     # Commit to GitHub
+#     commit_message = f"📋 Waiver signed: {youth_name} - {event_name} ({timestamp})"
+#     repo.create_file(
+#         path=file_path,
+#         message=commit_message,
+#         content=file_content,
+#         branch="main"
+#     )
     
-    print_banner("📋 WAIVER SIGNED & STORED (GITHUB)", "✍️")
-    print(f"✅ Waiver committed to GitHub: {github_repo}")
-    print(f"📁 File path: {file_path}")
-    print(f"👤 Participant: {youth_name}")
-    print(f"📝 Signed by: {waiver_record['waiver_signee']}")
-    print(f"🔗 GitHub URL: https://github.com/{github_repo}/blob/main/{file_path}")
+#     print_banner("📋 WAIVER SIGNED & STORED (GITHUB)", "✍️")
+#     print(f"✅ Waiver committed to GitHub: {github_repo}")
+#     print(f"📁 File path: {file_path}")
+#     print(f"👤 Participant: {youth_name}")
+#     print(f"📝 Signed by: {waiver_record['waiver_signee']}")
+#     print(f"🔗 GitHub URL: https://github.com/{github_repo}/blob/main/{file_path}")
     
-    return {
-        "file_path": f"https://github.com/{github_repo}/blob/main/{file_path}",
-        "event": event_name,
-        "participant": youth_name,
-        "timestamp": waiver_record['timestamp'],
-        "github_repo": github_repo
-    }
+#     return {
+#         "file_path": f"https://github.com/{github_repo}/blob/main/{file_path}",
+#         "event": event_name,
+#         "participant": youth_name,
+#         "timestamp": waiver_record['timestamp'],
+#         "github_repo": github_repo
+#     }
 
 
 # --- TOOL CANDIDATE ---
@@ -985,11 +985,11 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     
     truncated_messages = truncate_messages(state["messages"])
     
-    # Setup waiver system
-    print("\n📋 Setting up waiver system...")
-    waiver_dir = setup_waiver_directory()
-    waiver_pdf_path = copy_waiver_pdf()
-    print(f"📁 Waivers will be stored in: {waiver_dir}")
+    # # Setup waiver system
+    # print("\n📋 Setting up waiver system...")
+    # waiver_dir = setup_waiver_directory()
+    # waiver_pdf_path = copy_waiver_pdf()
+    # print(f"📁 Waivers will be stored in: {waiver_dir}")
     
     # Generate the standardized form with event details
     form_schema = generate_standardized_form(event_details)
@@ -1291,30 +1291,30 @@ def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
 
 
 # --- LANGGRAPH TOOL: Process Waiver Submission ---
-# This tool processes and stores signed waiver information from registrations
-@tool
-def process_waiver_submission(participant_data: dict, event_name: str = "Youth Event") -> dict:
-    """
-    Process and store a signed waiver from a participant.
+# # This tool processes and stores signed waiver information from registrations
+# @tool
+# def process_waiver_submission(participant_data: dict, event_name: str = "Youth Event") -> dict:
+#     """
+#     Process and store a signed waiver from a participant.
     
-    This tool takes registration data (including waiver signature) and stores it securely.
+#     This tool takes registration data (including waiver signature) and stores it securely.
     
-    Args:
-        participant_data: Dictionary with participant info including:
-            - youth_first_last_name: Youth's full name
-            - youth_age: Youth's age
-            - parent_first_last_name: Parent/Guardian name
-            - parent_phone: Parent/Guardian phone
-            - waiver_signature: Name as signed on waiver
-            - waiver_date: Date waiver was signed
-            - waiver_acknowledgment: Boolean - waiver was acknowledged
-        event_name: Name of the event
+#     Args:
+#         participant_data: Dictionary with participant info including:
+#             - youth_first_last_name: Youth's full name
+#             - youth_age: Youth's age
+#             - parent_first_last_name: Parent/Guardian name
+#             - parent_phone: Parent/Guardian phone
+#             - waiver_signature: Name as signed on waiver
+#             - waiver_date: Date waiver was signed
+#             - waiver_acknowledgment: Boolean - waiver was acknowledged
+#         event_name: Name of the event
     
-    Returns:
-        Dictionary with waiver storage details and confirmation
-    """
-    result = save_signed_waiver(participant_data, event_name)
-    return result
+#     Returns:
+#         Dictionary with waiver storage details and confirmation
+#     """
+#     result = save_signed_waiver(participant_data, event_name)
+#     return result
 
 
 # --- LANGGRAPH TOOL: Flyer Design Variations ---
