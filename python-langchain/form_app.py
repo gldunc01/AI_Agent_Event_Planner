@@ -178,20 +178,6 @@ if "description" in form_data:
 else:
     st.info("📋 Fill out the form below to register.")
 
-# Display waiver PDF section if available (BEFORE THE FORM)
-if WAIVER_ENABLED:
-    waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
-    if os.path.exists(waiver_pdf_path):
-        with st.expander("📄 View Waiver PDF", expanded=False):
-            with open(waiver_pdf_path, "rb") as pdf_file:
-                st.download_button(
-                    label="⬇️ Download Waiver PDF",
-                    data=pdf_file.read(),
-                    file_name="Youth_Event_Waiver.pdf",
-                    mime="application/pdf"
-                )
-                st.info("📋 Please review the waiver before signing below.")
-
 # Show registration count and capacity only to admin
 if st.session_state.get('admin_authenticated'):
     try:
@@ -324,17 +310,25 @@ create_table_if_not_exists(form_data.get("fields", []), event_details)
 
 with st.form(key="youth_registration"):
     form_values = {}
-    for field in form_data.get("fields", []):
+    current_section = None
+    fields_list = form_data.get("fields", [])
+    
+    for idx, field in enumerate(fields_list):
         # Handle section headers
         if field.get("type") == "section_header":
             st.divider()
             st.subheader(field.get("section", "Section"))
+            current_section = field.get("section", "")
             continue
         
         f_name = field["name"]
         f_label = field["label"]
         f_type = field.get("type", "text")
         f_required = field.get("required", False)
+        
+        # Update waiver checkbox label
+        if f_name == "waiver_acknowledgment":
+            f_label = "I have read and agree to the liability waiver"
 
         if f_type == "select":
             options = [opt.get("label", str(opt)) for opt in field.get("options", [])]
@@ -353,6 +347,23 @@ with st.form(key="youth_registration"):
             form_values[f_name] = st.text_input(f_label, placeholder="name@example.com", type="default", key=f_name)
         else:  # text default
             form_values[f_name] = st.text_input(f_label, key=f_name)
+        
+        # Display waiver PDF at the bottom of Waiver section
+        is_last_waiver_field = (f_name == "waiver_date" and current_section and "WAIVER" in current_section.upper())
+        if is_last_waiver_field:
+            st.divider()
+            if WAIVER_ENABLED:
+                waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
+                if os.path.exists(waiver_pdf_path):
+                    with open(waiver_pdf_path, "rb") as pdf_file:
+                        st.download_button(
+                            label="📄 View Full Waiver PDF",
+                            data=pdf_file.read(),
+                            file_name="Youth_Event_Waiver.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+    
     # Submit button OUTSIDE loop
     col1, col2 = st.columns([4, 1])
     with col2:
