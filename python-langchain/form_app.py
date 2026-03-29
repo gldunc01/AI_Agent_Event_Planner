@@ -384,14 +384,23 @@ if submitted:
     if missing:
         st.error(f"❌ Required fields missing: {', '.join(missing)}")
     else:
+        # Convert datetime.date objects to strings for JSON serialization
+        serializable_form_values = {}
+        for key, value in form_values.items():
+            if isinstance(value, datetime.date):
+                # Convert date to MM-DD-YYYY format string
+                serializable_form_values[key] = value.strftime("%m-%d-%Y")
+            else:
+                serializable_form_values[key] = value
+        
         # Process waiver if integrated
-        waiver_response = process_waiver_submission(form_values, event_details)
+        waiver_response = process_waiver_submission(serializable_form_values, event_details)
         if waiver_response and waiver_response['status'] == 'error':
             st.error(waiver_response['message'])
         else:
             # Create standardized submission with event metadata
             submission = {
-                **form_values,
+                **serializable_form_values,
                 "timestamp": datetime.datetime.now().isoformat(),
                 "event_name": event_details.get("event_name", ""),
                 "event_date": event_details.get("date", ""),
