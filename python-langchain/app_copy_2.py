@@ -108,37 +108,33 @@ def save_flyer_png_modern_clean(flyer_data: Dict, qr_path: str, output_path: str
     draw = ImageDraw.Draw(img)
     
     try:
-        font_huge = ImageFont.truetype("arial.ttf", 64)
-        font_large = ImageFont.truetype("arial.ttf", 48)
-        font_med = ImageFont.truetype("arial.ttf", 32)
-        font_small = ImageFont.truetype("arial.ttf", 24)
+        font_huge = ImageFont.truetype("arial.ttf", 56)
+        font_large = ImageFont.truetype("arial.ttf", 40)
+        font_med = ImageFont.truetype("arial.ttf", 28)
+        font_small = ImageFont.truetype("arial.ttf", 20)
     except:
         font_huge = font_large = font_med = font_small = ImageFont.load_default()
     
     # Colored header bar
     draw.rectangle([(0, 0), (img.width, 140)], fill=primary_color)
     
-    # Headline centered in header
-    headline_bbox = draw.textbbox((0, 0), flyer_data['headline'], font=font_huge)
-    headline_width = headline_bbox[2] - headline_bbox[0]
-    headline_x = (img.width - headline_width) // 2
-    draw.text((headline_x, 30), flyer_data['headline'], fill='white', font=font_huge)
+    # Headline centered in header - wrapped for long text
+    headline_wrapped = textwrap.fill(flyer_data['headline'], width=25)
+    draw.text((60, 35), headline_wrapped, fill='white', font=font_huge)
     
     # Accent line separator
     draw.rectangle([(50, 155), (img.width - 50, 165)], fill=accent_color)
     
     # Subheadline
-    subheadline_bbox = draw.textbbox((0, 0), flyer_data['subheadline'], font=font_med)
-    subheadline_width = subheadline_bbox[2] - subheadline_bbox[0]
-    subheadline_x = (img.width - subheadline_width) // 2
-    draw.text((subheadline_x, 185), flyer_data['subheadline'], fill=accent_color, font=font_med)
+    subheadline_wrapped = textwrap.fill(flyer_data['subheadline'], width=40)
+    draw.text((100, 185), subheadline_wrapped, fill=accent_color, font=font_med)
     
     # Details section with background cards
     y = 280
     details = [
-        ("📅 When", flyer_data['date_time_line']),
-        ("📍 Where", flyer_data['location_line']),
-        ("ℹ️ About", flyer_data['body_blurb'])
+        ("📅 When", flyer_data['date_time_line'][:50]),
+        ("📍 Where", flyer_data['location_line'][:45]),
+        ("ℹ️ About", flyer_data['body_blurb'][:80])
     ]
     
     for label, content in details:
@@ -149,8 +145,8 @@ def save_flyer_png_modern_clean(flyer_data: Dict, qr_path: str, output_path: str
         # Label in colored box
         draw.text((70, y + 10), label, fill='white', font=font_med)
         
-        # Content wrapped
-        wrapped = textwrap.fill(content, width=60)
+        # Content wrapped to fit
+        wrapped = textwrap.fill(content, width=45)
         draw.text((70, y + 55), wrapped, fill=primary_color, font=font_small)
         
         y += 130
@@ -206,8 +202,9 @@ def save_flyer_png_bold_vibrant(flyer_data: Dict, qr_path: str, output_path: str
     draw.text((70, content_y + 20), "📅 " + flyer_data['date_time_line'], fill=primary_color, font=font_med)
     draw.text((70, content_y + 80), "📍 " + flyer_data['location_line'], fill=primary_color, font=font_med)
     
-    # Body blurb wrapped
-    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=70)
+    # Body blurb wrapped - truncate if too long
+    body_text = flyer_data['body_blurb'][:120]
+    wrapped_body = textwrap.fill(body_text, width=60)
     draw.text((70, content_y + 150), wrapped_body, fill=primary_color, font=font_small)
     
     # CTA in accent color
@@ -390,8 +387,9 @@ def save_flyer_png_sporty_dynamic(flyer_data: Dict, qr_path: str, output_path: s
     draw.text((60, 150), "🗓️  " + flyer_data['date_time_line'], fill=accent_color, font=font_large)
     draw.text((60, 240), "📍 " + flyer_data['location_line'], fill=accent_color, font=font_large)
     
-    # Body wrapped
-    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=55)
+    # Body wrapped - truncate if too long
+    body_text = flyer_data['body_blurb'][:100]
+    wrapped_body = textwrap.fill(body_text, width=50)
     draw.text((60, 350), wrapped_body, fill='white', font=font_med)
     
     # Action button (bold CTA)
@@ -450,8 +448,9 @@ def save_flyer_png_minimalist_cool(flyer_data: Dict, qr_path: str, output_path: 
     draw.text((100, y_pos), flyer_data['location_line'], fill=(80, 80, 80), font=font_med)
     y_pos += 100
     
-    # Body description
-    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=50)
+    # Body description - truncate if too long
+    body_text = flyer_data['body_blurb'][:100]
+    wrapped_body = textwrap.fill(body_text, width=45)
     draw.text((100, y_pos), wrapped_body, fill=(120, 120, 120), font=font_small)
     
     # CTA at bottom - simple and elegant
@@ -508,7 +507,8 @@ def save_flyer_png_festival_fun(flyer_data: Dict, qr_path: str, output_path: str
     
     # Large body area
     draw.rectangle([(60, 470), (img.width - 60, 680)], fill='white', outline=primary_color, width=4)
-    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=60)
+    body_text = flyer_data['body_blurb'][:120]
+    wrapped_body = textwrap.fill(body_text, width=55)
     draw.text((80, 490), wrapped_body, fill=(40, 40, 40), font=font_med)
     
     # CTA button
@@ -591,25 +591,37 @@ async def email_generation_node(state: State) -> Command[Literal["form_generatio
     truncated_messages = truncate_messages(state["messages"])
     print(f"✉️ Generating proposal email for: {event_details.get('event_name', 'Unnamed Event')}")
     
-    # Create a detailed email generation prompt
+    # Create a concise email generation prompt
     email_task_prompt = f"""
-    Write a friendly, conversational proposal email to church leadership about this youth event.
+    Write a SHORT, friendly proposal email to church leadership.
     
-    TASK: Generate a complete proposal email with:
-    - Warm greeting (e.g., "Good evening Brothers," or similar)
-    - Personal, conversational tone - not corporate or overly formal
-    - Clear event description and purpose
-    - Specific date and time details
-    - Clear cost breakdown: total cost per person, youth payment, church subsidy request
-    - Alternative dates if available
-    - Warm closing with signature
-    - Keep it friendly and genuine, like you're talking to church community members
-    - Use "we" and "our" to include the community
+    STRICT REQUIREMENT: Start with ONLY "Good evening Brothers," - do not add Sisters or any variation.
     
-    STEP 1: Write the complete email body first (PLAIN TEXT ONLY, no JSON)
+    Keep it brief (under 200 words):
+    - What: Event name and purpose
+    - When: Date and time
+    - Where: Location
+    - Cost: Per person cost, youth payment amount, church subsidy needed
+    - Action: Request approval
     
-    STEP 2: Then call the save_proposal_email tool with:
-    - email_body: your complete email text
+    Tone: Warm, genuine, conversational - like talking to friends.
+    
+    Format:
+    --- EMAIL BODY START ---
+    Good evening Brothers,
+    
+    [Brief 2-3 sentence intro]
+    
+    [Event details and cost breakdown in 2-3 lines]
+    
+    [One sentence closing request]
+    
+    Blessings,
+    [Your name]
+    --- EMAIL BODY END ---
+    
+    After writing, call save_proposal_email with:
+    - email_body: your email text
     - event_name: "{event_details.get('event_name', 'Unnamed Event')}"
     - recipient: "pastor@church.org"
     
@@ -617,29 +629,67 @@ async def email_generation_node(state: State) -> Command[Literal["form_generatio
     {json.dumps(event_details, indent=2)}
     """
     
-    # Create email agent with enhanced prompt
-    email_agent = create_agent(llm, tools=[save_proposal_email], system_prompt=email_task_prompt)
-    response = await email_agent.ainvoke({"messages": truncated_messages})
-    
-    # Extract and display email content
-    email_content = None
-    tool_used = False
-    for msg in response["messages"]:
-        if msg.type == "ai":
-            email_content = msg.content
-        if hasattr(msg, 'name') and msg.name == "save_proposal_email":
-            tool_used = True
-    
-    if email_content:
-        print("\n📄 GENERATED EMAIL:")
-        print("="*60)
-        print(email_content[:500] + ("..." if len(email_content) > 500 else ""))
-        print("="*60)
-    
-    if tool_used:
-        print("✅ Email archived successfully")
-    else:
-        print("⚠️ Note: Tool may not have been called - email shown above for reference")
+    try:
+        # Create email agent with enhanced prompt
+        email_agent = create_agent(llm, tools=[save_proposal_email], system_prompt=email_task_prompt)
+        response = await email_agent.ainvoke({"messages": truncated_messages})
+        
+        # Extract email content and check if tool was called
+        email_content = None
+        tool_result = None
+        tool_used = False
+        
+        for msg in response["messages"]:
+            if msg.type == "ai":
+                email_content = msg.content
+            # Check for tool use in ToolUseBlock or other message types
+            if hasattr(msg, 'name') and msg.name == "save_proposal_email":
+                tool_used = True
+            # Look for tool results
+            if hasattr(msg, 'content') and isinstance(msg.content, str) and "file_path" in msg.content:
+                tool_result = msg.content
+                tool_used = True
+        
+        # Display the email content
+        if email_content:
+            print("\n📄 GENERATED EMAIL:")
+            print("="*60)
+            print(email_content)
+            print("="*60)
+        else:
+            print("⚠️ No email content generated")
+        
+        # If tool was used, confirm
+        if tool_used:
+            print("✅ Email archived successfully")
+        else:
+            # Fallback: Extract email text and save manually
+            print("⚠️ Extracting email from output and saving manually...")
+            if email_content and "EMAIL BODY" in email_content:
+                # Try to extract the email between markers
+                start_marker = "--- EMAIL BODY START ---"
+                end_marker = "--- EMAIL BODY END ---"
+                start_idx = email_content.find(start_marker)
+                end_idx = email_content.find(end_marker)
+                
+                if start_idx != -1 and end_idx != -1:
+                    extracted_email = email_content[start_idx + len(start_marker):end_idx].strip()
+                    if extracted_email:
+                        result = save_proposal_email(
+                            email_body=extracted_email,
+                            event_name=event_details.get('event_name', 'Unnamed Event'),
+                            recipient="pastor@church.org"
+                        )
+                        print("✅ Email saved via fallback method")
+                        tool_used = True
+            
+            if not tool_used:
+                print("⚠️ Email generated but not archived - see content above")
+        
+    except Exception as e:
+        print(f"❌ Error generating email: {e}")
+        import traceback
+        traceback.print_exc()
     
     print("\n➡️ Moving to form generation...")
     return Command(update={"messages": response["messages"], "event_details": event_details}, goto="form_generation")

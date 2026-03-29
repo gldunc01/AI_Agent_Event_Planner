@@ -1,11 +1,11 @@
 {
-  "title": "Youth Basketball Clinic Registration Form",
-  "description": "Register for Youth Basketball Clinic. Please provide all required information.",
+  "title": "Marriage Retreat Registration Form",
+  "description": "Register for Marriage Retreat. Please provide all required information.",
   "event_details": {
-    "event_name": "Youth Basketball Clinic",
+    "event_name": "Marriage Retreat",
     "date": "2026-04-15",
     "time": "3:00 PM - 5:00 PM",
-    "location": "City Sports Complex",
+    "location": "Lake Cumberlands",
     "max_participants": 30,
     "age_range": "12-17"
   },
