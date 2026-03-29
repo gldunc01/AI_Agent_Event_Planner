@@ -285,6 +285,247 @@ def save_flyer_png_professional_business(flyer_data: Dict, qr_path: str, output_
     print(f"✅ FLYER SAVED (Professional) to: {os.path.abspath(output_path)}")
     return output_path
 
+def save_flyer_png_retro_playful(flyer_data: Dict, qr_path: str, output_path: str):
+    """Retro 90s playful style with bouncy elements and rounded corners."""
+    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
+    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
+    secondary = tuple(min(255, c + 40) for c in primary_color)  # Lighter shade
+    
+    img = Image.new('RGB', (1100, 850), color=secondary)
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_huge = ImageFont.truetype("arial.ttf", 70)
+        font_large = ImageFont.truetype("arial.ttf", 44)
+        font_med = ImageFont.truetype("arial.ttf", 32)
+        font_small = ImageFont.truetype("arial.ttf", 24)
+    except:
+        font_huge = font_large = font_med = font_small = ImageFont.load_default()
+    
+    # Playful circles in corners
+    draw.ellipse([(20, 20), (200, 200)], outline=accent_color, width=8)
+    draw.ellipse([(img.width - 200, img.height - 200), (img.width - 20, img.height - 20)], outline=primary_color, width=8)
+    
+    # Central content box with thick border
+    box_x1, box_y1 = 80, 120
+    box_x2, box_y2 = img.width - 80, img.height - 160
+    draw.rectangle([(box_x1, box_y1), (box_x2, box_y2)], fill=(255, 255, 255), outline=primary_color, width=6)
+    
+    # Headline with shadow effect
+    draw.text((100, 140), flyer_data['headline'], fill=primary_color, font=font_huge)
+    draw.text((102, 142), flyer_data['headline'], fill=accent_color, font=font_huge)
+    
+    # Subheadline
+    draw.text((100, 240), flyer_data['subheadline'], fill=accent_color, font=font_large)
+    
+    # Event details in colored boxes
+    y = 330
+    details = [
+        ("📅", flyer_data['date_time_line']),
+        ("📍", flyer_data['location_line']),
+        ("ℹ️", flyer_data['body_blurb'][:60] + "...")
+    ]
+    
+    for icon, content in details:
+        draw.rectangle([(100, y), (img.width - 100, y + 50)], fill=accent_color, outline=primary_color, width=3)
+        draw.text((110, y + 8), icon + " " + content, fill='white', font=font_med)
+        y += 70
+    
+    # CTA with burst effect
+    cta_y = img.height - 130
+    draw.rectangle([(150, cta_y), (img.width - 150, cta_y + 70)], fill=primary_color)
+    for i in range(0, 20):
+        angle = i * 18
+        draw.text((img.width // 2, cta_y + 20), "⭐", fill=accent_color, font=font_small)
+    
+    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_large)
+    cta_width = cta_bbox[2] - cta_bbox[0]
+    cta_x = (img.width - cta_width) // 2
+    draw.text((cta_x, cta_y + 10), flyer_data['call_to_action'], fill='white', font=font_large)
+    
+    # QR code with decorative frame
+    qr_box_x, qr_box_y = img.width - 260, 40
+    draw.rectangle([(qr_box_x - 10, qr_box_y - 10), (qr_box_x + 210, qr_box_y + 210)], fill=accent_color, width=4)
+    qr_img = Image.open(qr_path).resize((180, 180))
+    img.paste(qr_img, (qr_box_x, qr_box_y))
+    
+    img.save(output_path)
+    print(f"✅ FLYER SAVED (Retro Playful) to: {os.path.abspath(output_path)}")
+    return output_path
+
+def save_flyer_png_sporty_dynamic(flyer_data: Dict, qr_path: str, output_path: str):
+    """High-energy sports style with diagonal stripes and action vibes."""
+    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
+    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
+    
+    img = Image.new('RGB', (1100, 850), color=(20, 20, 20))  # Dark background
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_huge = ImageFont.truetype("arial.ttf", 80)
+        font_large = ImageFont.truetype("arial.ttf", 48)
+        font_med = ImageFont.truetype("arial.ttf", 32)
+        font_small = ImageFont.truetype("arial.ttf", 24)
+    except:
+        font_huge = font_large = font_med = font_small = ImageFont.load_default()
+    
+    # Diagonal stripes background
+    stripe_width = 40
+    for i in range(0, img.width + img.height, stripe_width * 2):
+        draw.line([(i, 0), (i - img.height, img.height)], fill=primary_color, width=stripe_width)
+    
+    # Energy band across top
+    draw.rectangle([(0, 0), (img.width, 100)], fill=accent_color)
+    
+    # Headline in white with thick letters
+    draw.text((50, 20), flyer_data['headline'], fill='white', font=font_huge)
+    
+    # Main content area with semi-transparent overlay
+    overlay = Image.new('RGBA', (img.width, img.height), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.rectangle([(0, 130), (img.width, img.height - 50)], fill=(255, 255, 255, 25))
+    img.paste(overlay, (0, 0), overlay)
+    
+    # Event details in bold
+    draw.text((60, 150), "🗓️  " + flyer_data['date_time_line'], fill=accent_color, font=font_large)
+    draw.text((60, 240), "📍 " + flyer_data['location_line'], fill=accent_color, font=font_large)
+    
+    # Body wrapped
+    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=55)
+    draw.text((60, 350), wrapped_body, fill='white', font=font_med)
+    
+    # Action button (bold CTA)
+    draw.rectangle([(100, 580), (img.width - 100, 680)], fill=accent_color, outline='white', width=5)
+    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_huge)
+    cta_width = cta_bbox[2] - cta_bbox[0]
+    cta_x = (img.width - cta_width) // 2
+    draw.text((cta_x, 595), flyer_data['call_to_action'], fill='white', font=font_huge)
+    
+    # QR corner badge
+    qr_img = Image.open(qr_path).resize((160, 160))
+    qr_bg = Image.new('RGB', (190, 190), accent_color)
+    qr_bg.paste(qr_img, (15, 15))
+    img.paste(qr_bg, (img.width - 210, img.height - 190))
+    
+    draw.text((img.width - 200, img.height - 30), "SCAN TO REGISTER", fill='white', font=font_small)
+    
+    img.save(output_path)
+    print(f"✅ FLYER SAVED (Sporty Dynamic) to: {os.path.abspath(output_path)}")
+    return output_path
+
+def save_flyer_png_minimalist_cool(flyer_data: Dict, qr_path: str, output_path: str):
+    """Ultra-clean minimalist design with lots of whitespace and typography focus."""
+    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
+    
+    img = Image.new('RGB', (1100, 850), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_huge = ImageFont.truetype("arial.ttf", 90)
+        font_large = ImageFont.truetype("arial.ttf", 42)
+        font_med = ImageFont.truetype("arial.ttf", 28)
+        font_small = ImageFont.truetype("arial.ttf", 22)
+    except:
+        font_huge = font_large = font_med = font_small = ImageFont.load_default()
+    
+    # Single color accent bar (very thin)
+    draw.rectangle([(0, 200), (img.width, 210)], fill=primary_color)
+    
+    # Minimalist headline (centered, huge)
+    headline_lines = flyer_data['headline'].split('\n') if '\n' in flyer_data['headline'] else [flyer_data['headline']]
+    y_pos = 80
+    for line in headline_lines:
+        bbox = draw.textbbox((0, 0), line, font=font_huge)
+        line_width = bbox[2] - bbox[0]
+        x_pos = (img.width - line_width) // 2
+        draw.text((x_pos, y_pos), line, fill=primary_color, font=font_huge)
+        y_pos += 100
+    
+    # Plenty of whitespace
+    y_pos = 300
+    
+    # Details - one per line, left aligned
+    draw.text((100, y_pos), flyer_data['date_time_line'], fill=(80, 80, 80), font=font_med)
+    y_pos += 80
+    draw.text((100, y_pos), flyer_data['location_line'], fill=(80, 80, 80), font=font_med)
+    y_pos += 100
+    
+    # Body description
+    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=50)
+    draw.text((100, y_pos), wrapped_body, fill=(120, 120, 120), font=font_small)
+    
+    # CTA at bottom - simple and elegant
+    draw.text((100, img.height - 100), flyer_data['call_to_action'], fill=primary_color, font=font_large)
+    
+    # QR code bottom right - no border, just QR
+    qr_img = Image.open(qr_path).resize((200, 200))
+    img.paste(qr_img, (img.width - 250, img.height - 250))
+    
+    img.save(output_path)
+    print(f"✅ FLYER SAVED (Minimalist Cool) to: {os.path.abspath(output_path)}")
+    return output_path
+
+def save_flyer_png_festival_fun(flyer_data: Dict, qr_path: str, output_path: str):
+    """Festival/carnival style with colorful sections and playful layout."""
+    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
+    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
+    
+    img = Image.new('RGB', (1100, 850), color=(255, 220, 100))  # Warm yellow base
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_huge = ImageFont.truetype("arial.ttf", 76)
+        font_large = ImageFont.truetype("arial.ttf", 46)
+        font_med = ImageFont.truetype("arial.ttf", 30)
+        font_small = ImageFont.truetype("arial.ttf", 24)
+    except:
+        font_huge = font_large = font_med = font_small = ImageFont.load_default()
+    
+    # Colorful header banner with gradient effect (simulated with rectangles)
+    draw.rectangle([(0, 0), (img.width, 30)], fill=primary_color)
+    draw.rectangle([(0, 30), (img.width, 60)], fill=accent_color)
+    draw.rectangle([(0, 60), (img.width, 90)], fill=primary_color)
+    
+    # Headline with background
+    draw.rectangle([(40, 110), (img.width - 40, 190)], fill=(255, 255, 255), outline=primary_color, width=4)
+    draw.text((60, 125), flyer_data['headline'], fill=primary_color, font=font_huge)
+    
+    # Subheadline
+    draw.text((60, 210), flyer_data['subheadline'], fill=accent_color, font=font_large)
+    
+    # Three info boxes with different colors
+    boxes = [
+        (60, 280, primary_color, "📅", flyer_data['date_time_line']),
+        (360, 280, accent_color, "📍", flyer_data['location_line']),
+        (660, 280, primary_color, "🎉", "Join us for fun!")
+    ]
+    
+    for box_x, box_y, color, icon, text in boxes:
+        draw.rectangle([(box_x, box_y), (box_x + 280, box_y + 150)], fill=color, outline='white', width=3)
+        draw.text((box_x + 20, box_y + 20), icon, fill='white', font=font_huge)
+        wrapped_text = textwrap.fill(text, width=20)
+        draw.text((box_x + 20, box_y + 70), wrapped_text, fill='white', font=font_med)
+    
+    # Large body area
+    draw.rectangle([(60, 470), (img.width - 60, 680)], fill='white', outline=primary_color, width=4)
+    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=60)
+    draw.text((80, 490), wrapped_body, fill=(40, 40, 40), font=font_med)
+    
+    # CTA button
+    draw.rectangle([(150, 720), (img.width - 150, 800)], fill=primary_color, outline=accent_color, width=5)
+    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_large)
+    cta_width = cta_bbox[2] - cta_bbox[0]
+    cta_x = (img.width - cta_width) // 2
+    draw.text((cta_x, 740), flyer_data['call_to_action'], fill='white', font=font_large)
+    
+    # QR code with festive frame
+    qr_img = Image.open(qr_path).resize((140, 140))
+    img.paste(qr_img, (img.width - 180, 20))
+    
+    img.save(output_path)
+    print(f"✅ FLYER SAVED (Festival Fun) to: {os.path.abspath(output_path)}")
+    return output_path
+
 def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png"):
     """Generate professional flyer with rotating design templates."""
     print_banner("🎨 GENERATING FLYER PNG", "🖼️")
@@ -315,7 +556,11 @@ def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png
     designs = [
         save_flyer_png_modern_clean,
         save_flyer_png_bold_vibrant,
-        save_flyer_png_professional_business
+        save_flyer_png_professional_business,
+        save_flyer_png_retro_playful,
+        save_flyer_png_sporty_dynamic,
+        save_flyer_png_minimalist_cool,
+        save_flyer_png_festival_fun
     ]
     
     # Map design names or use hash-based rotation for variety
@@ -323,6 +568,14 @@ def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png
         chosen_design = save_flyer_png_bold_vibrant
     elif design_style == 'professional' or design_style == 'business':
         chosen_design = save_flyer_png_professional_business
+    elif design_style == 'retro' or design_style == 'playful':
+        chosen_design = save_flyer_png_retro_playful
+    elif design_style == 'sporty' or design_style == 'dynamic':
+        chosen_design = save_flyer_png_sporty_dynamic
+    elif design_style == 'minimalist' or design_style == 'cool':
+        chosen_design = save_flyer_png_minimalist_cool
+    elif design_style == 'festival' or design_style == 'fun':
+        chosen_design = save_flyer_png_festival_fun
     else:
         # Use hash of headline to consistently pick same design for same event
         headline_hash = int(hashlib.md5(flyer_data['headline'].encode()).hexdigest(), 16)
@@ -442,7 +695,7 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     )
 
 async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
-    print_banner("🎨 STEP 3: FLYER WITH QR CODE")
+    print_banner("🎨 STEP 3: FLYER WITH CREATIVE DESIGNS")
     
     event_details = state.get("event_details", {})
     form_url = state.get("form_url", event_details.get("form_url", "https://forms.example.com/register"))
@@ -455,67 +708,111 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     else:
         print(f"📱 Will generate new QR linking to: {form_url}")
     
-    # Create writer agent with flyer-specific prompt
-    flyer_task_prompt = f"""
-    Create a fun and colorful flyer for this youth church event!
+    # STEP 1: Designer agent generates multiple creative variations
+    print_banner("👨‍🎨 FLYER DESIGNER: Generating Creative Concepts", "🎨")
     
-    TASK: Design a flyer JSON schema with these required fields:
-    {{
-      "headline": "str (main event title, fun and catchy! Use excitement and energy!)",
-      "subheadline": "str (fun tagline or hook - make kids want to come!)", 
-      "date_time_line": "str (formatted date and time, e.g., 'Saturday, April 15 • 2:00 PM - 4:00 PM')",
-      "location_line": "str (venue name and address)",
-      "body_blurb": "str (short 2-3 sentences about the super fun stuff happening - use language kids would love!)",
-      "call_to_action": "str (fun action text, e.g., 'Scan QR to Join the Fun!' or 'Click Here to Register!')",
-      "color_scheme": {{"primary": "#hex (bright, fun main color that pops!)", "accent": "#hex (complementary bright color)"}},
-      "design_style": "str (one of: 'modern', 'bold', 'professional' - recommend 'bold' for youth events)"
-    }}
+    designer_prompt = f"""
+    You are a creative flyer designer for youth events. Your job is to generate multiple creative design concepts.
     
-    DESIGN STYLE GUIDELINES:
-    - 'bold': Vibrant colors, dynamic accents, modern typography - BEST for youth events!
-    - 'modern': Clean, centered layout - good for all ages
-    - 'professional': Two-column style - if you want a more traditional look
+    TASK: Call the design_flyer_variations tool with these event details:
+    {json.dumps(event_details, indent=2)}
     
-    TONE & CONTENT TIPS FOR KIDS AGES 5-18:
-    - Use exciting, energetic language - not stuffy or corporate!
-    - Include emojis in the text (🎉, ⚽, 🎮, 🎨, 🎪, etc.) to match the event vibe
-    - Make it FUN first, informative second
-    - Use words kids actually use and get excited about
-    - Emphasize the awesome parts: games, friends, activities, snacks, prizes, etc.
-    - The headline should make kids say "I want to go!"
-    - Pick bright, poppy colors that grab attention
+    This will generate 5 different creative design variations (modern, retro, sporty, minimalist, festival).
+    Review them and be ready to recommend the best one to the editor.
     
-    STEP 1: Create the complete flyer JSON design with fun, kid-friendly content
+    After calling the tool, provide a brief recommendation about which design you think would work best for this event and why.
+    """
     
-    STEP 2: Call the generate_flyer_package tool with:
-    - flyer_data: the JSON object you designed
-    - form_url: "{form_url}"
+    designer_agent = create_agent(llm, tools=[design_flyer_variations], system_prompt=designer_prompt)
+    designer_response = await designer_agent.ainvoke({"messages": truncated_messages})
+    
+    # Extract the variations from the designer's response
+    design_variations = None
+    designer_output = None
+    for msg in designer_response["messages"]:
+        if msg.type == "ai":
+            designer_output = msg.content
+    
+    print("\n👨‍🎨 DESIGNER RECOMMENDATIONS:")
+    if designer_output:
+        print("="*60)
+        print(designer_output[:600] + ("..." if len(designer_output) > 600 else ""))
+        print("="*60)
+    
+    # Extract variations from tool call results if available
+    tool_msgs = [m for m in designer_response["messages"] if hasattr(m, 'name') and m.name == "design_flyer_variations"]
+    if tool_msgs and hasattr(tool_msgs[-1], 'content'):
+        try:
+            variations_data = json.loads(tool_msgs[-1].content)
+            if 'variations' in variations_data:
+                design_variations = variations_data['variations']
+        except:
+            pass
+    
+    # If we couldn't extract variations, generate them directly
+    if not design_variations:
+        print("⚠️ Generating variations directly...")
+        from langchain.tools import tool
+        @tool
+        def get_variations(event_details):
+            result = design_flyer_variations(event_details)
+            return result
+        
+        var_result = await get_variations.ainvoke(event_details)
+        design_variations = var_result.get('variations')
+    
+    if not design_variations:
+        print("❌ Could not generate design variations")
+        design_variations = []
+    
+    # STEP 2: Editor agent selects and refines the best design
+    print_banner("✏️ FLYER EDITOR: Selecting Best Design", "📝")
+    
+    editor_prompt = f"""
+    You are a flyer editor. The designer has created these flyer design variations:
+    
+    {json.dumps(design_variations, indent=2)}
+    
+    TASK:
+    1. Analyze which design best fits this youth event
+    2. You can slightly refine it (improve copy, adjust colors if needed)
+    3. Call the select_and_render_flyer tool with your chosen design
+    
+    Consider:
+    - The event type and target audience
+    - Which design will grab attention and encourage registration
+    - The energy level and vibe that matches the event
+    
+    After analyzing, call select_and_render_flyer with the best design (you can refine the copy if it will be better).
     
     Event Details:
     {json.dumps(event_details, indent=2)}
+    
+    Form URL for QR code: {form_url}
     """
     
-    flyer_agent = create_agent(llm, tools=[generate_flyer_package], system_prompt=flyer_task_prompt)
-    response = await flyer_agent.ainvoke({"messages": truncated_messages})
+    editor_agent = create_agent(llm, tools=[select_and_render_flyer], system_prompt=editor_prompt)
+    editor_response = await editor_agent.ainvoke({"messages": designer_response["messages"]})
     
-    # Extract flyer output
-    flyer_output = None
-    for msg in response["messages"]:
+    # Extract editor output
+    editor_output = None
+    for msg in editor_response["messages"]:
         if msg.type == "ai":
-            flyer_output = msg.content
+            editor_output = msg.content
     
-    if flyer_output:
-        print("\n🎨 FLYER OUTPUT:")
+    if editor_output:
+        print("\n✏️ EDITOR SELECTION:")
         print("="*60)
-        print(flyer_output[:500] + ("..." if len(flyer_output) > 500 else ""))
+        print(editor_output[:600] + ("..." if len(editor_output) > 600 else ""))
         print("="*60)
     
-    print("✅ Flyer generated with embedded QR code")
-    print("\n📁 All files exported to current directory")
+    print("\n✅ Creative flyer generated with embedded QR code!")
+    print("🎨 Design variations explored and best option selected")
+    print("📁 All files exported to current directory")
     
     return Command(
         update={
-            "messages": response["messages"],
+            "messages": editor_response["messages"],
             "event_details": event_details,
             "form_url": form_url,
             "qr_path": qr_path
@@ -662,6 +959,149 @@ def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
     return output_path
 
 
+# --- LANGGRAPH TOOL: Flyer Design Variations ---
+# This tool generates multiple creative flyer design concepts for the editor to choose from
+@tool
+def design_flyer_variations(event_details: dict, event_name: str = "Youth Event") -> dict:
+    """
+    Generate multiple creative flyer design variations to choose from.
+    
+    This tool creates several distinct design concepts in JSON format that capture
+    different creative approaches - modern, playful, sporty, minimalist, etc.
+    
+    Args:
+        event_details: Dictionary with event info (name, date, time, location, description)
+        event_name: Name of the event (default: "Youth Event")
+    
+    Returns:
+        Dictionary with:
+        - "variations": List of 5 different flyer design concepts as JSON objects
+        - "descriptions": Brief description of each design's style and vibe
+    """
+    
+    design_variations = [
+        {
+            "name": "Modern Clean",
+            "vibe": "Professional, polished, modern with clean lines",
+            "design_style": "modern",
+            "headline": f"🎯 {event_details.get('event_name', event_name)}",
+            "subheadline": "Get ready for an amazing experience!",
+            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "location_line": event_details.get('location', 'Location TBA'),
+            "body_blurb": "Join us for an incredible event featuring fun, friends, and unforgettable memories. Perfect for ages 12-18!",
+            "call_to_action": "Register Now!",
+            "color_scheme": {"primary": "#2E7D32", "accent": "#FFC107"}
+        },
+        {
+            "name": "Retro Playful",
+            "vibe": "Fun, nostalgic 90s style with bouncy energy",
+            "design_style": "retro",
+            "headline": f"🎉 {event_details.get('event_name', event_name).upper()}!",
+            "subheadline": "This is going to be LIT! ✨",
+            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "location_line": f"📍 {event_details.get('location', 'Location TBA')}",
+            "body_blurb": "Get hyped! This event is packed with activities, games, friends, and good vibes. You don't want to miss this!",
+            "call_to_action": "Let's Go! 🚀",
+            "color_scheme": {"primary": "#FF6B6B", "accent": "#4ECDC4"}
+        },
+        {
+            "name": "Sporty Dynamic",
+            "vibe": "High-energy, athletic, action-packed vibes",
+            "design_style": "sporty",
+            "headline": f"⚡ {event_details.get('event_name', event_name)}",
+            "subheadline": "Game On!",
+            "date_time_line": event_details.get('event_date', 'Coming Soon') + " • " + event_details.get('event_time', 'TBA'),
+            "location_line": f"🏟️ {event_details.get('location', 'Location TBA')}",
+            "body_blurb": f"Ready to bring your A-game? Join us for {event_details.get('event_name', 'this event')} and show what you've got!",
+            "call_to_action": "Sign Me Up! 🏆",
+            "color_scheme": {"primary": "#000000", "accent": "#FF6B35"}
+        },
+        {
+            "name": "Minimalist Cool",
+            "vibe": "Ultra-modern, sophisticated, clean aesthetic",
+            "design_style": "minimalist",
+            "headline": f"{event_details.get('event_name', event_name)}",
+            "subheadline": "Be there.",
+            "date_time_line": event_details.get('event_date', 'Coming Soon') + " / " + event_details.get('event_time', 'TBA'),
+            "location_line": event_details.get('location', 'Location TBA'),
+            "body_blurb": "An unforgettable experience awaits. Simple. Elegant. Powerful.",
+            "call_to_action": "Join Us",
+            "color_scheme": {"primary": "#1A1A1A", "accent": "#00D9FF"}
+        },
+        {
+            "name": "Festival Fun",
+            "vibe": "Colorful, celebratory, carnival atmosphere",
+            "design_style": "festival",
+            "headline": f"🎪 {event_details.get('event_name', event_name)} 🎪",
+            "subheadline": "The Event of the Year!",
+            "date_time_line": f"📅 {event_details.get('event_date', 'Coming Soon')} at {event_details.get('event_time', 'TBA')}",
+            "location_line": f"🎟️ {event_details.get('location', 'Location TBA')}",
+            "body_blurb": "Music, games, food, friends, and NON-STOP FUN! This is the event everyone will be talking about!",
+            "call_to_action": "Get Your Ticket! 🎟️",
+            "color_scheme": {"primary": "#FF1493", "accent": "#00CED1"}
+        }
+    ]
+    
+    descriptions = [
+        "Design 1: Clean, professional look - great for all-ages events",
+        "Design 2: Fun and playful 90s vibe - perfect for getting kids excited",
+        "Design 3: High-energy sports style - ideal for athletic/competitive events",
+        "Design 4: Sophisticated modern - works for any event that wants elegance",
+        "Design 5: Festive carnival - maximum energy and fun for youth events"
+    ]
+    
+    return {
+        "variations": design_variations,
+        "descriptions": descriptions,
+        "note": "Pick your favorite design number (1-5) or mix & match elements!"
+    }
+
+
+# --- LANGGRAPH TOOL: Select and Render Flyer ---
+# This tool takes a selected design variation and renders the final flyer
+@tool
+def select_and_render_flyer(selected_design: dict, form_url: str = "https://forms.example.com/register") -> dict:
+    """
+    Select a flyer design variation, optionally refine it, and render the final flyer PNG.
+    
+    This tool takes a selected design concept and generates:
+    - A QR code PNG linking to the form_url
+    - A flyer PNG with the selected design
+    
+    Args:
+        selected_design: The chosen design variation dict with all design fields
+        form_url: URL to embed in the QR code for registration
+    
+    Returns:
+        Dictionary with:
+        - "flyer_path": Absolute path to generated flyer PNG
+        - "qr_path": Absolute path to generated QR code PNG
+        - "design_used": Name of the design style used
+    """
+    
+    print_banner("🎨 RENDERING FINAL FLYER", "✨")
+    
+    # Validate design has required fields
+    required = ['headline', 'subheadline', 'date_time_line', 'location_line', 'body_blurb', 'call_to_action', 'color_scheme']
+    missing = [f for f in required if f not in selected_design]
+    if missing:
+        raise ValueError(f"Selected design missing fields: {missing}")
+    
+    # Generate QR code
+    qr_path = create_qr_png(form_url)
+    
+    # Generate flyer with selected design
+    flyer_path = save_flyer_png(selected_design, qr_path)
+    
+    design_name = selected_design.get('name', 'Custom')
+    
+    return {
+        "flyer_path": flyer_path,
+        "qr_path": qr_path,
+        "design_used": design_name
+    }
+
+
 # --- LANGGRAPH TOOL: Flyer Package Generation ---
 # This tool is exposed to the writer agent and can be called during the writing phase.
 # It encapsulates the logic for generating both QR codes and flyer PNGs.
@@ -756,7 +1196,7 @@ def save_proposal_email(email_body: str, event_name: str = "Unnamed Event", reci
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Build filename
-    filename = f"proposal_email_{slug}_{timestamp}.md"
+    filename = f"proposal_email_{slug}_{timestamp}.txt"
     file_path = os.path.abspath(filename)
     
     # Write file with recipient header
@@ -842,7 +1282,9 @@ async def main():
     print("  1. Generate a proposal email")
     print("  2. Build a registration form")
     print("  3. Create a QR code linking to the form")
-    print("  4. Generate a flyer with the QR code embedded")
+    print("  4. CREATIVE PROCESS: Designer generates 5 design concepts")
+    print("  5. SELECTION PROCESS: Editor picks the best design and renders final flyer")
+    print("  6. Output flyer with embedded QR code in multiple creative styles!")
     
     while True:
         try:
