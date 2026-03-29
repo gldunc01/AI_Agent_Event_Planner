@@ -43,8 +43,8 @@ if summary:
     # Option to return to form
     if st.button("⬅️ Register Another Child"):
         st.session_state['submission_summary'] = None
-        st.switch_page('python-langchain/form_app.py')
+        st.switch_page('Registration Form')
 else:
     st.warning("No submission found. Please fill out the registration form first.")
     if st.button("Go to Registration Form"):
-        st.switch_page('python-langchain/form_app.py')
+        st.switch_page('Registration Form')
