@@ -347,27 +347,25 @@ with st.form(key="youth_registration"):
             form_values[f_name] = st.text_input(f_label, placeholder="name@example.com", type="default", key=f_name)
         else:  # text default
             form_values[f_name] = st.text_input(f_label, key=f_name)
-        
-        # Display waiver PDF at the bottom of Waiver section
-        is_last_waiver_field = (f_name == "waiver_date" and current_section and "WAIVER" in current_section.upper())
-        if is_last_waiver_field:
-            st.divider()
-            if WAIVER_ENABLED:
-                waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
-                if os.path.exists(waiver_pdf_path):
-                    with open(waiver_pdf_path, "rb") as pdf_file:
-                        st.download_button(
-                            label="📄 View Full Waiver PDF",
-                            data=pdf_file.read(),
-                            file_name="Youth_Event_Waiver.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
     
     # Submit button OUTSIDE loop
     col1, col2 = st.columns([4, 1])
     with col2:
         submitted = st.form_submit_button("✅ Register", use_container_width=True)
+
+# Display waiver PDF outside the form (download_button can't be in forms)
+if WAIVER_ENABLED:
+    waiver_pdf_path = os.path.join(os.path.dirname(__file__), "waivers", "Waiver.pdf")
+    if os.path.exists(waiver_pdf_path):
+        st.divider()
+        with open(waiver_pdf_path, "rb") as pdf_file:
+            st.download_button(
+                label="📄 View Full Waiver PDF",
+                data=pdf_file.read(),
+                file_name="Youth_Event_Waiver.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 
 
