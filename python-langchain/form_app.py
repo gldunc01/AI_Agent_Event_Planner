@@ -74,6 +74,15 @@ def get_default_form():
 
 st.set_page_config(page_title="Youth Registration", layout="wide")
 
+# Admin password (can be overridden with env variable)
+ADMIN_PASSWORD = os.getenv("FORM_APP_ADMIN_PASSWORD", "admin123")
+
+# Initialize session state
+if 'admin_authenticated' not in st.session_state:
+    st.session_state['admin_authenticated'] = False
+if 'show_admin_panel' not in st.session_state:
+    st.session_state['show_admin_panel'] = False
+
 # Automatically load form schema from file (or use default)
 # TTL=60 means cache expires after 60 seconds (auto-refresh hosted app)
 @st.cache_data(ttl=60)
@@ -82,29 +91,9 @@ def cached_load_form_schema():
 
 form_data = cached_load_form_schema()
 
-# Add refresh button in sidebar for development and hosted environments
+# Admin panel toggle in sidebar
 with st.sidebar:
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Refresh Form", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    with col2:
-        if st.button("ℹ️ Info", use_container_width=True):
-            st.session_state['show_info'] = not st.session_state.get('show_info', False)
-    
-    if st.session_state.get('show_info'):
-        st.info("""
-        **Form Update Information:**
-        - 🔄 Cache refreshes every 60 seconds automatically
-        - 📁 Loads form from `current_event_form.json`
-        - ⚙️ Manual update required: Push changes to GitHub yourself
-        
-        **To Update:**
-        1. Run app_copy_2.py to generate form
-        2. Push current_event_form.json to GitHub
-        3. Press 🔄 Refresh or wait 60 seconds for auto-reload
-        """)
+    st.markdown("---")
 
 
 # Extract event details safely (with fallback defaults)
@@ -164,7 +153,7 @@ if st.session_state.get('show_summary', False):
         st.rerun()
     st.stop()  # Stop execution here, don't show form
 
-# Show registration form
+# Show registration form (CUSTOMER VIEW)
 st.markdown(f"<h1 style='color: purple; text-align: center;'>{event_title}</h1>", unsafe_allow_html=True)
 
 if "description" in form_data:
@@ -172,19 +161,20 @@ if "description" in form_data:
 else:
     st.info("📋 Fill out the form below to register.")
 
-# Show registration count at the top
-try:
-    reg_count = len(get_all_registrations())
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📝 Registrations", reg_count)
-    with col2:
-        st.metric("👥 Max Capacity", event_details.get('max_participants', 'N/A'))
-    with col3:
-        remaining = event_details.get('max_participants', 0) - reg_count if isinstance(event_details.get('max_participants'), int) else "N/A"
-        st.metric("🔢 Spots Remaining", remaining)
-except:
-    pass
+# Show registration count and capacity only to admin
+if st.session_state.get('admin_authenticated'):
+    try:
+        reg_count = len(get_all_registrations())
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📝 Registrations", reg_count)
+        with col2:
+            st.metric("👥 Max Capacity", event_details.get('max_participants', 'N/A'))
+        with col3:
+            remaining = event_details.get('max_participants', 0) - reg_count if isinstance(event_details.get('max_participants'), int) else "N/A"
+            st.metric("🔢 Spots Remaining", remaining)
+    except:
+        pass
 
 
 # ============================================================================
@@ -296,7 +286,7 @@ if submitted:
 
 
 
-# Sidebar for event details and form updates
+# Sidebar for event details (CUSTOMER) and admin dashboard (ADMIN)
 with st.sidebar:
     # Try to load logo if available
     try:
@@ -307,7 +297,7 @@ with st.sidebar:
     
     st.header(event_name)
     
-    # Display event details dynamically from form schema
+    # Display event details dynamically from form schema (CUSTOMER VIEW)
     if event_details:
         if "date" in event_details:
             st.write(f"📅 **Date:** {event_details.get('date', 'TBD')}")
@@ -322,30 +312,68 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Registrations dashboard
-    st.subheader("📊 Registrations")
-    try:
-        registrations_df = get_all_registrations()
-        if not registrations_df.empty:
-            st.metric("Total Registrations", len(registrations_df))
+    # Admin Panel Login
+    if not st.session_state.get('admin_authenticated'):
+        if st.button("🔐 Admin Panel", use_container_width=True):
+            st.session_state['show_admin_panel'] = not st.session_state.get('show_admin_panel', False)
+        
+        if st.session_state.get('show_admin_panel'):
+            st.warning("🔒 Admin Panel - Password Required")
+            admin_password = st.text_input("Enter admin password:", type="password", key="admin_pwd")
             
-            # Show latest registrations
-            if st.checkbox("📋 View All Registrations"):
-                st.dataframe(registrations_df, use_container_width=True)
-            
-            # Export to CSV
-            csv = registrations_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download CSV",
-                data=csv,
-                file_name=f"registrations_{db_event_slug}.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("No registrations yet")
-    except Exception as e:
-        st.warning(f"Database not ready: {e}")
+            if admin_password:
+                if admin_password == ADMIN_PASSWORD:
+                    st.session_state['admin_authenticated'] = True
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect password")
+    else:
+        # Show logout button if authenticated
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success("✅ Admin Mode")
+        with col2:
+            if st.button("🚪 Logout", use_container_width=True):
+                st.session_state['admin_authenticated'] = False
+                st.session_state['show_admin_panel'] = False
+                st.rerun()
     
     st.markdown("---")
-    st.caption("📝 Manual Updates: Run app_copy_2.py to generate a form. Push current_event_form.json to GitHub. App will auto-reload within 60 seconds.")
-    st.caption(f"💾 Database: `{DB_PATH}`")
+    if st.session_state.get('admin_authenticated'):
+        st.subheader("📊 Admin Dashboard")
+        
+        # Registrations stats
+        try:
+            registrations_df = get_all_registrations()
+            if not registrations_df.empty:
+                col_stat1, col_stat2 = st.columns(2)
+                with col_stat1:
+                    st.metric("Total Registrations", len(registrations_df))
+                with col_stat2:
+                    max_cap = event_details.get('max_participants', 0)
+                    if max_cap > 0:
+                        pct = (len(registrations_df) / max_cap) * 100
+                        st.metric("Capacity Used", f"{pct:.0f}%")
+                
+                # View registrations table
+                with st.expander("📋 View All Registrations", expanded=False):
+                    st.dataframe(registrations_df, use_container_width=True, height=400)
+                
+                # Export to CSV
+                csv = registrations_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv,
+                    file_name=f"registrations_{db_event_slug}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("No registrations yet")
+        except Exception as e:
+            st.warning(f"Database error: {e}")
+        
+        st.markdown("---")
+        st.caption(f"💾 Database: `{DB_PATH}`")
+    else:
+        st.caption("🔐 Sign in as admin for analytics")
