@@ -1,0 +1,78 @@
+{
+  "title": "Girls Night Out Registration Form",
+  "description": "Register for Girls Night Out. Please provide all required information.",
+  "event_details": {
+    "event_name": "Girls Night Out",
+    "date": "04-15-2026",
+    "time": "6:00 PM - 8:00 PM",
+    "location": "Main Event",
+    "max_participants": 30,
+    "age_range": "12-17"
+  },
+  "fields": [
+    {
+      "name": "youth_first_last_name",
+      "label": "Youth First and Last Name",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "youth_age",
+      "label": "Youth Age",
+      "type": "number",
+      "required": true
+    },
+    {
+      "name": "parent_first_last_name",
+      "label": "Parent/Guardian First and Last Name",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "parent_phone",
+      "label": "Parent/Guardian Phone Number",
+      "type": "tel",
+      "required": true
+    },
+    {
+      "name": "transportation_needed",
+      "label": "Need transportation?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "label": "Yes",
+          "value": "yes"
+        },
+        {
+          "label": "No",
+          "value": "no"
+        }
+      ]
+    },
+    {
+      "name": "special_needs",
+      "label": "Special accommodations? (If yes, specify)",
+      "type": "textarea",
+      "required": false
+    },
+    {
+      "name": "consent",
+      "label": "I give permission for my child to participate.",
+      "type": "checkbox",
+      "required": true
+    },
+    {
+      "name": "signature",
+      "label": "Parent/Guardian Signature",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "date",
+      "label": "Date",
+      "type": "date",
+      "required": true
+    }
+  ]
+}

@@ -152,20 +152,11 @@ def generate_standardized_form(event_details: Dict) -> dict:
             {"name": "special_needs", "label": "Special accommodations? (If yes, specify)", "type": "textarea", "required": False},
             {"name": "consent", "label": "I give permission for my child to participate.", "type": "checkbox", "required": True},
             {"name": "signature", "label": "Parent/Guardian Signature", "type": "text", "required": True},
-            {"name": "date", "label": "Date", "type": "date", "required": True},
-            # # WAIVER SECTION (DISABLED)
-            # {"section": "WAIVER & LIABILITY RELEASE", "type": "section_header"},
-            # {"name": "waiver_acknowledgment", "label": "I have read and understand the liability waiver", "type": "checkbox", "required": True},
-            # {"name": "waiver_signature", "label": "Sign your name here (Parent/Guardian)", "type": "text", "required": True},
-            # {"name": "waiver_date", "label": "Date", "type": "date", "required": True}
+            {"name": "date", "label": "Date", "type": "date", "required": True}
         ]
     }
   
-# --- TOOL CANDIDATE ---
-# This function is a good candidate to expose as a tool:
-# - Input: flyer_data (dict with required fields), qr_path (path to QR PNG)
-# - Output: flyer PNG file saved to disk
-# - Used for: 'flyer' and 'basketball_clinic' tasks
+
 def save_flyer_png_modern_clean(flyer_data: Dict, qr_path: str, output_path: str):
     """Modern clean design with centered header and card-style sections."""
     primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
@@ -778,12 +769,6 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     
     truncated_messages = truncate_messages(state["messages"])
     
-    # # Setup waiver system
-    # print("\n📋 Setting up waiver system...")
-    # waiver_dir = setup_waiver_directory()
-    # waiver_pdf_path = copy_waiver_pdf()
-    # print(f"📁 Waivers will be stored in: {waiver_dir}")
-    
     # Generate the standardized form with event details
     form_schema = generate_standardized_form(event_details)
     
@@ -1019,11 +1004,6 @@ def extractjsonfromtext(text: str) -> dict:
     
     raise ValueError("No valid JSON found")
 
-# --- TOOL CANDIDATE ---
-# This function is a good candidate to expose as a tool:
-# - Input: form_url (string)
-# - Output: path to saved QR PNG
-# - Used for: all tasks that need a QR code (flyer, basketball_clinic, youth_registration_form)
 def create_qr_png(form_url: str, output_path: str = "event_qr.png") -> str:
     print_banner("📱 GENERATING QR CODE")
     print(f"🔗 Linking to: {form_url}")
