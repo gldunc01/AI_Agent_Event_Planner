@@ -21,6 +21,8 @@ import hashlib
 import shutil
 from pathlib import Path
 import base64
+from html2image import Html2Image  # For HTML to PNG conversion
+import random
 
 load_dotenv()
 
@@ -38,15 +40,71 @@ writer_agent = None
 editor_agent = None
 llm = None  # Global LLM client
 
-def truncate_messages(messages: list, max_messages: int = 5) -> list:
+def truncate_messages(messages: list, max_messages: int = 3, keep_first: bool = True) -> list:
+    """
+    Truncate messages to prevent token limit issues with GPT-4 mini.
+    
+    Args:
+        messages: List of messages to truncate
+        max_messages: Maximum number of messages to keep (default: 3 for GPT-4 mini token limits)
+        keep_first: Whether to keep the first message (usually the initial context)
+    
+    Returns:
+        Truncated message list
+    """
     if len(messages) <= max_messages:
         return messages
-    return messages[:1] + messages[-(max_messages-1):]
+    
+    # Keep first message (context) + most recent messages to stay under token limit
+    if keep_first and len(messages) > 1:
+        # Keep 1st message + last (max_messages-1) messages
+        return messages[:1] + messages[-(max_messages-1):]
+    else:
+        # Just keep the last max_messages
+        return messages[-max_messages:]
 
 def hex_to_rgb(hex_color: str) -> tuple:
     """Convert hex color string to RGB tuple."""
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+def generate_random_color_pair() -> tuple:
+    """Generate random but complementary color pair (primary, accent)."""
+    color_palettes = [
+        ("#FF6B6B", "#4ECDC4"),  # Coral & Teal
+        ("#6C5CE7", "#A29BFE"),  # Purple & Light Purple
+        ("#00B894", "#FDCB6E"),  # Green & Yellow
+        ("#E17055", "#74B9FF"),  # Red & Blue
+        ("#0984E3", "#FD79A8"),  # Blue & Pink
+        ("#27AE60", "#F39C12"),  # Dark Green & Orange
+        ("#9B59B6", "#E91E63"),  # Purple & Magenta
+        ("#1ABC9C", "#E74C3C"),  # Turquoise & Red
+        ("#3498DB", "#2ECC71"),  # Sky Blue & Green
+        ("#F94937", "#FFC107"),  # Deep Red & Amber
+        ("#FF7675", "#A0522D"),  # Light Red & Brown
+        ("#FF85C0", "#6C63FF"),  # Pink & Indigo
+        ("#00D2FC", "#3A86FF"),  # Cyan & Blue
+        ("#FF006E", "#FFBE0B"),  # Hot Pink & Yellow
+        ("#8338EC", "#FB5607"),  # Purple & Orange
+    ]
+    return random.choice(color_palettes)
+
+def generate_random_layout_variant() -> str:
+    """Return a random layout style."""
+    return random.choice([
+        "gradient_top",
+        "sidebar_left",
+        "centered_bold",
+        "split_diagonal",
+        "layered_cards",
+        "asymmetric",
+        "minimalist_left",
+        "full_splash",
+        "ribbon_header",
+        "hexagon_accent",
+        "geometric_bg",
+        "bubble_accent"
+    ])
 
 def print_banner(text: str, symbol: str = "="):
     """Fancy print headers."""
@@ -157,436 +215,477 @@ def generate_standardized_form(event_details: Dict) -> dict:
     }
   
 
-def save_flyer_png_modern_clean(flyer_data: Dict, qr_path: str, output_path: str):
-    """Modern clean design with centered header and card-style sections."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
-    
-    # Create image with white background
-    img = Image.new('RGB', (1100, 850), color=(255, 255, 255))
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 56)
-        font_large = ImageFont.truetype("arial.ttf", 40)
-        font_med = ImageFont.truetype("arial.ttf", 28)
-        font_small = ImageFont.truetype("arial.ttf", 20)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Colored header bar
-    draw.rectangle([(0, 0), (img.width, 140)], fill=primary_color)
-    
-    # Headline centered in header - wrapped for long text
-    headline_wrapped = textwrap.fill(flyer_data['headline'], width=25)
-    draw.text((60, 35), headline_wrapped, fill='white', font=font_huge)
-    
-    # Accent line separator
-    draw.rectangle([(50, 155), (img.width - 50, 165)], fill=accent_color)
-    
-    # Subheadline
-    subheadline_wrapped = textwrap.fill(flyer_data['subheadline'], width=40)
-    draw.text((100, 185), subheadline_wrapped, fill=accent_color, font=font_med)
-    
-    # Details section with background cards
-    y = 280
-    details = [
-        ("📅 When", flyer_data['date_time_line'][:50]),
-        ("📍 Where", flyer_data['location_line'][:45]),
-        ("ℹ️ About", flyer_data['body_blurb'][:80])
-    ]
-    
-    for label, content in details:
-        # Card background
-        draw.rectangle([(60, y), (img.width - 60, y + 100)], outline=accent_color, width=2)
-        draw.rectangle([(60, y), (200, y + 50)], fill=accent_color)
-        
-        # Label in colored box
-        draw.text((70, y + 10), label, fill='white', font=font_med)
-        
-        # Content wrapped to fit
-        wrapped = textwrap.fill(content, width=45)
-        draw.text((70, y + 55), wrapped, fill=primary_color, font=font_small)
-        
-        y += 130
-    
-    # Call to action button
-    cta_y = img.height - 150
-    draw.rectangle([(100, cta_y), (img.width - 100, cta_y + 60)], fill=accent_color)
-    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_large)
-    cta_width = cta_bbox[2] - cta_bbox[0]
-    cta_x = (img.width - cta_width) // 2
-    draw.text((cta_x, cta_y + 8), flyer_data['call_to_action'], fill='white', font=font_large)
-    
-    # QR code (bottom right corner)
-    qr_img = Image.open(qr_path).resize((180, 180))
-    img.paste(qr_img, (img.width - 220, img.height - 220))
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Modern Clean) to: {os.path.abspath(output_path)}")
-    return output_path
+# ============================================================================
+# HTML/CSS-BASED FLYER GENERATION SYSTEM
+# ============================================================================
 
-def save_flyer_png_bold_vibrant(flyer_data: Dict, qr_path: str, output_path: str):
-    """Bold vibrant design with diagonal accents and large typography."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
+def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) -> str:
+    """Generate HTML/CSS flyer based on layout style with randomization."""
     
-    # Create image
-    img = Image.new('RGB', (1100, 850), color=primary_color)
-    draw = ImageDraw.Draw(img)
+    if not layout:
+        layout = generate_random_layout_variant()
     
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 72)
-        font_large = ImageFont.truetype("arial.ttf", 44)
-        font_med = ImageFont.truetype("arial.ttf", 28)
-        font_small = ImageFont.truetype("arial.ttf", 22)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
+    primary = flyer_data['color_scheme']['primary']
+    accent = flyer_data['color_scheme']['accent']
     
-    # Large diagonal accent bar (top right)
-    points = [(img.width, 0), (img.width, 200), (img.width - 300, 0)]
-    draw.polygon(points, fill=accent_color)
+    # Escape HTML special characters
+    headline = flyer_data['headline'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    subheadline = flyer_data['subheadline'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    date_time = flyer_data['date_time_line'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    location = flyer_data['location_line'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    body = flyer_data['body_blurb'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    cta = flyer_data['call_to_action'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     
-    # Headline in white
-    draw.text((60, 50), flyer_data['headline'], fill='white', font=font_huge)
+    base_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Event Flyer</title>
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: 'Arial', 'Segoe UI', sans-serif; background: white; }}
+            .flyer {{ width: 1100px; height: 850px; position: relative; overflow: hidden; }}
+        </style>
+    </head>
+    <body>
+        <div class="flyer">
+    """
     
-    # Subheadline
-    draw.text((60, 150), flyer_data['subheadline'], fill=accent_color, font=font_large)
+    if layout == "gradient_top":
+        html = base_html + f"""
+            <style>
+                .gradient-bg {{ background: linear-gradient(135deg, {primary} 0%, {accent} 100%); height: 280px; display: flex; flex-direction: column; justify-content: center; padding: 40px; color: white; }}
+                .headline {{ font-size: 56px; font-weight: bold; margin-bottom: 15px; }}
+                .subheadline {{ font-size: 32px; opacity: 0.9; }}
+                .content {{ padding: 40px; }}
+                .info-box {{ margin: 20px 0; padding: 15px; background: {accent}22; border-left: 5px solid {accent}; border-radius: 5px; }}
+                .info-title {{ font-weight: bold; color: {primary}; font-size: 18px; }}
+                .info-text {{ color: #333; font-size: 16px; margin-top: 5px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 20px 30px; font-size: 24px; font-weight: bold; border-radius: 10px; margin: 20px 0; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 20px; right: 20px; width: 180px; height: 180px; background: white; padding: 10px; border-radius: 5px; }}
+            </style>
+            <div class="gradient-bg">
+                <div class="headline">{headline}</div>
+                <div class="subheadline">{subheadline}</div>
+            </div>
+            <div class="content">
+                <div class="info-box">
+                    <div class="info-title">📅 When</div>
+                    <div class="info-text">{date_time}</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-title">📍 Where</div>
+                    <div class="info-text">{location}</div>
+                </div>
+                <div class="body-text">{body}</div>
+                <div class="cta">{cta}</div>
+            </div>
+            <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+        </div>
+        </body>
+        </html>
+        """
     
-    # Content section (white box with event details)
-    content_y = 280
-    draw.rectangle([(40, content_y), (img.width - 40, content_y + 380)], fill='white')
+    elif layout == "sidebar_left":
+        html = base_html + f"""
+            <style>
+                .sidebar {{ width: 45%; height: 100%; background: linear-gradient(180deg, {primary} 0%, {accent} 100%); color: white; padding: 40px; display: flex; flex-direction: column; justify-content: space-between; float: left; }}
+                .main {{ width: 55%; height: 100%; padding: 40px; overflow-y: auto; float: right; }}
+                .headline {{ font-size: 48px; font-weight: bold; margin-bottom: 20px; }}
+                .subheadline {{ font-size: 28px; opacity: 0.9; margin-bottom: 40px; }}
+                .info-text {{ font-size: 18px; margin: 10px 0; }}
+                .main-headline {{ font-size: 32px; color: {primary}; font-weight: bold; margin-bottom: 20px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 15px 25px; font-size: 20px; font-weight: bold; border-radius: 5px; margin-top: 20px; display: inline-block; }}
+                .qr {{ width: 150px; height: 150px; padding: 8px; background: white; border-radius: 3px; margin-top: auto; }}
+            </style>
+            <div class="sidebar">
+                <div>
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                </div>
+                <div>
+                    <div class="info-text">📅 {date_time}</div>
+                    <div class="info-text">📍 {location}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+            <div class="main">
+                <div class="main-headline">About This Event</div>
+                <div class="body-text">{body}</div>
+                <div class="cta">{cta}</div>
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    # Draw event details inside white box
-    draw.text((70, content_y + 20), "📅 " + flyer_data['date_time_line'], fill=primary_color, font=font_med)
-    draw.text((70, content_y + 80), "📍 " + flyer_data['location_line'], fill=primary_color, font=font_med)
+    elif layout == "centered_bold":
+        html = base_html + f"""
+            <style>
+                .background {{ width: 100%; height: 100%; background: {primary}; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; padding: 40px; }}
+                .headline {{ font-size: 72px; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }}
+                .subheadline {{ font-size: 36px; margin-bottom: 40px; }}
+                .content-box {{ background: white; color: #333; padding: 30px; border-radius: 15px; max-width: 700px; margin: 20px auto; }}
+                .info-item {{ margin: 15px 0; font-size: 18px; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 24px; font-weight: bold; border-radius: 10px; margin-top: 20px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 160px; height: 160px; background: white; padding: 10px; border-radius: 5px; }}
+            </style>
+            <div class="background">
+                <div class="headline">{headline}</div>
+                <div class="subheadline">{subheadline}</div>
+                <div class="content-box">
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    # Body blurb wrapped - truncate if too long
-    body_text = flyer_data['body_blurb'][:120]
-    wrapped_body = textwrap.fill(body_text, width=60)
-    draw.text((70, content_y + 150), wrapped_body, fill=primary_color, font=font_small)
+    elif layout == "split_diagonal":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; position: relative; display: flex; }}
+                .left {{ width: 50%; background: {primary}; padding: 40px; color: white; display: flex; flex-direction: column; justify-content: center; clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%); }}
+                .right {{ width: 50%; background: #f5f5f5; padding: 40px; margin-left: -50px; padding-left: 80px; }}
+                .headline {{ font-size: 52px; font-weight: bold; margin-bottom: 20px; }}
+                .subheadline {{ font-size: 28px; opacity: 0.95; }}
+                .right-headline {{ font-size: 32px; color: {primary}; font-weight: bold; margin-bottom: 20px; }}
+                .info-item {{ margin: 15px 0; font-size: 17px; color: #333; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 16px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; margin-top: 20px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 25px; right: 25px; width: 140px; height: 140px; background: white; padding: 8px; border-radius: 4px; }}
+            </style>
+            <div class="container">
+                <div class="left">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                </div>
+                <div class="right">
+                    <div class="right-headline">Event Details</div>
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    # CTA in accent color
-    draw.text((70, content_y + 300), flyer_data['call_to_action'], fill=accent_color, font=font_large)
+    elif layout == "layered_cards":
+        html = base_html + f"""
+            <style>
+                .background {{ width: 100%; height: 100%; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); padding: 30px; }}
+                .header-card {{ background: {primary}; color: white; padding: 35px; border-radius: 15px; margin-bottom: -20px; position: relative; z-index: 3; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
+                .headline {{ font-size: 48px; font-weight: bold; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 24px; opacity: 0.9; }}
+                .content-card {{ background: white; padding: 40px; border-radius: 15px; margin-top: 30px; position: relative; z-index: 2; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }}
+                .info-box {{ padding: 15px; background: {accent}15; border-left: 4px solid {accent}; border-radius: 5px; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 16px; }}
+                .info-value {{ color: #666; font-size: 15px; margin-top: 5px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; margin: 20px 0; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 150px; height: 150px; background: white; padding: 8px; border-radius: 5px; }}
+            </style>
+            <div class="background">
+                <div class="header-card">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                </div>
+                <div class="content-card">
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="info-label">📅 Date & Time</div>
+                            <div class="info-value">{date_time}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">📍 Location</div>
+                            <div class="info-value">{location}</div>
+                        </div>
+                    </div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+                </div>
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    # QR code (bottom right in colored box)
-    qr_box_x, qr_box_y = img.width - 240, img.height - 240
-    draw.rectangle([(qr_box_x - 20, qr_box_y - 20), (qr_box_x + 200, qr_box_y + 200)], fill=accent_color)
-    qr_img = Image.open(qr_path).resize((180, 180))
-    img.paste(qr_img, (qr_box_x, qr_box_y))
+    elif layout == "asymmetric":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; background: white; position: relative; }}
+                .accent-shape {{ position: absolute; background: {accent}; opacity: 0.1; width: 300px; height: 500px; border-radius: 150px 0 0 150px; right: 0; top: 0; }}
+                .header {{ padding: 40px 50px; position: relative; z-index: 2; }}
+                .headline {{ font-size: 54px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 28px; color: {accent}; }}
+                .main {{ padding: 20px 50px; position: relative; z-index: 2; }}
+                .info-block {{ margin: 20px 0; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 17px; }}
+                .info-value {{ color: #666; font-size: 16px; margin-top: 5px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 25px 0; }}
+                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 12px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 170px; height: 170px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
+            </style>
+            <div class="container">
+                <div class="accent-shape"></div>
+                <div class="header">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                </div>
+                <div class="main">
+                    <div class="info-block">
+                        <div class="info-label">📅</div>
+                        <div class="info-value">{date_time}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-label">📍</div>
+                        <div class="info-value">{location}</div>
+                    </div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    # Footer text
-    draw.text((60, img.height - 40), "Scan QR to Register Instantly!", fill='white', font=font_small)
+    elif layout == "minimalist_left":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; display: flex; background: white; }}
+                .left {{ width: 40%; background: {primary}; padding: 50px; color: white; display: flex; flex-direction: column; justify-content: space-between; }}
+                .right {{ width: 60%; padding: 50px; display: flex; flex-direction: column; justify-content: center; }}
+                .headline {{ font-size: 44px; font-weight: 900; margin-bottom: 20px; letter-spacing: -1px; }}
+                .subheadline {{ font-size: 24px; opacity: 0.9; font-weight: 300; }}
+                .right-headline {{ font-size: 36px; color: {primary}; font-weight: bold; margin-bottom: 30px; }}
+                .info-item {{ font-size: 18px; margin: 15px 0; color: #444; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 20px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; margin-top: 20px; }}
+                .qr {{ width: 120px; height: 120px; background: white; padding: 8px; border-radius: 4px; margin-top: auto; }}
+            </style>
+            <div class="container">
+                <div class="left">
+                    <div>
+                        <div class="headline">{headline}</div>
+                        <div class="subheadline">{subheadline}</div>
+                    </div>
+                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+                </div>
+                <div class="right">
+                    <div class="right-headline">Event Details</div>
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+            </div>
+        </div>
+        </body>
+        </html>
+        """
     
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Bold Vibrant) to: {os.path.abspath(output_path)}")
-    return output_path
+    elif layout == "full_splash":
+        html = base_html + f"""
+            <style>
+                .splash {{ width: 100%; height: 100%; background: linear-gradient(135deg, {primary} 0%, {accent} 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 50px; color: white; text-align: center; }}
+                .headline {{ font-size: 68px; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 6px rgba(0,0,0,0.3); }}
+                .subheadline {{ font-size: 32px; opacity: 0.95; margin-bottom: 40px; }}
+                .content {{ background: rgba(255,255,255,0.95); color: #333; padding: 30px; border-radius: 15px; margin: 20px auto; max-width: 600px; }}
+                .info-item {{ font-size: 18px; margin: 10px; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
+                .cta {{ background: {primary}; color: white; padding: 16px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; margin-top: 15px; display: inline-block; }}
+                .qr {{ position: absolute; top: 20px; right: 20px; width: 150px; height: 150px; background: white; padding: 10px; border-radius: 5px; }}
+            </style>
+            <div class="splash">
+                <div class="headline">{headline}</div>
+                <div class="subheadline">{subheadline}</div>
+                <div class="content">
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
+    
+    elif layout == "ribbon_header":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; background: #fafafa; padding: 40px; }}
+                .ribbon {{ background: {primary}; color: white; padding: 30px; margin: -40px -40px 40px -40px; position: relative; }}
+                .ribbon::after {{ content: ''; position: absolute; bottom: -15px; left: 0; right: 0; height: 15px; background: inherit; clip-path: polygon(0 0, 0 50%, 50% 100%, 100% 50%, 100% 0); }}
+                .headline {{ font-size: 52px; font-weight: bold; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 26px; opacity: 0.9; }}
+                .main {{ position: relative; z-index: 1; padding-top: 25px; }}
+                .info-section {{ margin: 25px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid {accent}; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 16px; }}
+                .info-value {{ color: #666; margin-top: 5px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; margin: 20px 0; }}
+                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+            </style>
+            <div class="ribbon">
+                <div class="headline">{headline}</div>
+                <div class="subheadline">{subheadline}</div>
+            </div>
+            <div class="main">
+                <div class="info-section">
+                    <div class="info-label">📅 When</div>
+                    <div class="info-value">{date_time}</div>
+                </div>
+                <div class="info-section">
+                    <div class="info-label">📍 Where</div>
+                    <div class="info-value">{location}</div>
+                </div>
+                <div class="body-text">{body}</div>
+                <div class="cta">{cta}</div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
+    
+    elif layout == "hexagon_accent":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; background: linear-gradient(to right, #f0f0f0 50%, white 50%); padding: 40px; }}
+                .hex {{ position: absolute; right: 30px; top: 30px; width: 200px; height: 200px; background: {accent}; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); opacity: 0.2; }}
+                .content {{ max-width: 600px; position: relative; z-index: 1; }}
+                .headline {{ font-size: 56px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 40px; }}
+                .info-item {{ margin: 18px 0; font-size: 18px; color: #555; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
+                .cta {{ background: {primary}; color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+            </style>
+            <div class="hex"></div>
+            <div class="container">
+                <div class="content">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                </div>
+                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+            </div>
+        </div>
+        </body>
+        </html>
+        """
+    
+    elif layout == "geometric_bg":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; background: white; position: relative; overflow: hidden; }}
+                .geo1 {{ position: absolute; width: 300px; height: 300px; background: {primary}; opacity: 0.08; top: -50px; right: -50px; transform: rotate(45deg); }}
+                .geo2 {{ position: absolute; width: 250px; height: 250px; background: {accent}; opacity: 0.08; bottom: -30px; left: -30px; border-radius: 50%; }}
+                .geo3 {{ position: absolute; width: 200px; height: 300px; background: {accent}; opacity: 0.06; top: 50%; right: 10%; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }}
+                .content {{ position: relative; z-index: 1; padding: 50px; }}
+                .headline {{ font-size: 56px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 40px; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0; }}
+                .info-box {{ padding: 15px; background: {accent}15; border-radius: 8px; }}
+                .info-label {{ font-weight: bold; color: {primary}; }}
+                .info-value {{ color: #666; margin-top: 5px; font-size: 15px; }}
+                .body-text {{ color: #555; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
+                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 150px; height: 150px; background: white; padding: 8px; border-radius: 5px; }}
+            </style>
+            <div class="container">
+                <div class="geo1"></div>
+                <div class="geo2"></div>
+                <div class="geo3"></div>
+                <div class="content">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="info-label">📅 When</div>
+                            <div class="info-value">{date_time}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">📍 Where</div>
+                            <div class="info-value">{location}</div>
+                        </div>
+                    </div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+                </div>
+            </div>
+        </div>
+        </body>
+        </html>
+        """
+    
+    elif layout == "bubble_accent":
+        html = base_html + f"""
+            <style>
+                .container {{ width: 100%; height: 100%; background: {primary}; padding: 40px; margin: 0; }}
+                .bubble {{ position: absolute; background: {accent}; opacity: 0.2; border-radius: 50%; }}
+                .bubble1 {{ width: 250px; height: 250px; top: 50px; left: 50px; }}
+                .bubble2 {{ width: 200px; height: 200px; bottom: 100px; right: 80px; }}
+                .bubble3 {{ width: 150px; height: 150px; top: 60%; left: 70%; }}
+                .card {{ background: white; color: #333; padding: 50px; border-radius: 20px; margin: 40px; position: relative; z-index: 1; }}
+                .headline {{ font-size: 52px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
+                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 30px; }}
+                .info-item {{ font-size: 18px; margin: 15px 0; color: #555; }}
+                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
+                .cta {{ background: {accent}; color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 12px; display: inline-block; }}
+                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+            </style>
+            <div class="container">
+                <div class="bubble bubble1"></div>
+                <div class="bubble bubble2"></div>
+                <div class="bubble bubble3"></div>
+                <div class="card">
+                    <div class="headline">{headline}</div>
+                    <div class="subheadline">{subheadline}</div>
+                    <div class="info-item">📅 {date_time}</div>
+                    <div class="info-item">📍 {location}</div>
+                    <div class="body-text">{body}</div>
+                    <div class="cta">{cta}</div>
+                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
+                </div>
+            </div>
+        </div>
+        </body>
+        </html>
+        """
+    
+    else:
+        # Fallback to gradient_top
+        return generate_html_flyer(flyer_data, qr_base64, "gradient_top")
+    
+    return html
 
-def save_flyer_png_professional_business(flyer_data: Dict, qr_path: str, output_path: str):
-    """Professional business style with two-column layout."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
-    
-    img = Image.new('RGB', (1100, 850), color=(240, 240, 240))
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 60)
-        font_large = ImageFont.truetype("arial.ttf", 40)
-        font_med = ImageFont.truetype("arial.ttf", 28)
-        font_small = ImageFont.truetype("arial.ttf", 20)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Left column (primary color)
-    draw.rectangle([(0, 0), (500, img.height)], fill=primary_color)
-    
-    # Headline on left
-    wrapped_headline = textwrap.fill(flyer_data['headline'], width=20)
-    draw.text((30, 40), wrapped_headline, fill='white', font=font_huge)
-    
-    # Subheadline
-    draw.text((30, 250), flyer_data['subheadline'], fill=accent_color, font=font_large)
-    
-    # Left column details
-    draw.text((30, 380), "Date & Time:", fill=accent_color, font=font_med)
-    draw.text((30, 430), flyer_data['date_time_line'], fill='white', font=font_small)
-    
-    draw.text((30, 520), "Location:", fill=accent_color, font=font_med)
-    draw.text((30, 570), flyer_data['location_line'], fill='white', font=font_small)
-    
-    # Right column (white)
-    draw.rectangle([(500, 0), (img.width, img.height)], fill='white')
-    
-    # Right column details
-    draw.text((550, 100), "About This Event:", fill=primary_color, font=font_large)
-    wrapped_body = textwrap.fill(flyer_data['body_blurb'], width=45)
-    draw.text((550, 180), wrapped_body, fill=(80, 80, 80), font=font_small)
-    
-    # CTA box
-    draw.rectangle([(550, 400), (img.width - 30, 480)], fill=accent_color)
-    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_med)
-    cta_width = cta_bbox[2] - cta_bbox[0]
-    cta_x = 550 + (img.width - 580 - cta_width) // 2
-    draw.text((cta_x, 415), flyer_data['call_to_action'], fill='white', font=font_med)
-    
-    # QR code on right
-    qr_img = Image.open(qr_path).resize((220, 220))
-    img.paste(qr_img, (img.width - 280, img.height - 260))
-    
-    # Small footer
-    draw.text((550, img.height - 50), "Scan QR Code Above to Register", fill=(150, 150, 150), font=font_small)
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Professional) to: {os.path.abspath(output_path)}")
-    return output_path
-
-def save_flyer_png_retro_playful(flyer_data: Dict, qr_path: str, output_path: str):
-    """Retro 90s playful style with bouncy elements and rounded corners."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
-    secondary = tuple(min(255, c + 40) for c in primary_color)  # Lighter shade
-    
-    img = Image.new('RGB', (1100, 850), color=secondary)
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 70)
-        font_large = ImageFont.truetype("arial.ttf", 44)
-        font_med = ImageFont.truetype("arial.ttf", 32)
-        font_small = ImageFont.truetype("arial.ttf", 24)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Playful circles in corners
-    draw.ellipse([(20, 20), (200, 200)], outline=accent_color, width=8)
-    draw.ellipse([(img.width - 200, img.height - 200), (img.width - 20, img.height - 20)], outline=primary_color, width=8)
-    
-    # Central content box with thick border
-    box_x1, box_y1 = 80, 120
-    box_x2, box_y2 = img.width - 80, img.height - 160
-    draw.rectangle([(box_x1, box_y1), (box_x2, box_y2)], fill=(255, 255, 255), outline=primary_color, width=6)
-    
-    # Headline with shadow effect
-    draw.text((100, 140), flyer_data['headline'], fill=primary_color, font=font_huge)
-    draw.text((102, 142), flyer_data['headline'], fill=accent_color, font=font_huge)
-    
-    # Subheadline
-    draw.text((100, 240), flyer_data['subheadline'], fill=accent_color, font=font_large)
-    
-    # Event details in colored boxes
-    y = 330
-    details = [
-        ("📅", flyer_data['date_time_line']),
-        ("📍", flyer_data['location_line']),
-        ("ℹ️", flyer_data['body_blurb'][:60] + "...")
-    ]
-    
-    for icon, content in details:
-        draw.rectangle([(100, y), (img.width - 100, y + 50)], fill=accent_color, outline=primary_color, width=3)
-        draw.text((110, y + 8), icon + " " + content, fill='white', font=font_med)
-        y += 70
-    
-    # CTA with burst effect
-    cta_y = img.height - 130
-    draw.rectangle([(150, cta_y), (img.width - 150, cta_y + 70)], fill=primary_color)
-    for i in range(0, 20):
-        angle = i * 18
-        draw.text((img.width // 2, cta_y + 20), "⭐", fill=accent_color, font=font_small)
-    
-    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_large)
-    cta_width = cta_bbox[2] - cta_bbox[0]
-    cta_x = (img.width - cta_width) // 2
-    draw.text((cta_x, cta_y + 10), flyer_data['call_to_action'], fill='white', font=font_large)
-    
-    # QR code with decorative frame
-    qr_box_x, qr_box_y = img.width - 260, 40
-    draw.rectangle([(qr_box_x - 10, qr_box_y - 10), (qr_box_x + 210, qr_box_y + 210)], fill=accent_color, width=4)
-    qr_img = Image.open(qr_path).resize((180, 180))
-    img.paste(qr_img, (qr_box_x, qr_box_y))
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Retro Playful) to: {os.path.abspath(output_path)}")
-    return output_path
-
-def save_flyer_png_sporty_dynamic(flyer_data: Dict, qr_path: str, output_path: str):
-    """High-energy sports style with diagonal stripes and action vibes."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
-    
-    img = Image.new('RGB', (1100, 850), color=(20, 20, 20))  # Dark background
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 80)
-        font_large = ImageFont.truetype("arial.ttf", 48)
-        font_med = ImageFont.truetype("arial.ttf", 32)
-        font_small = ImageFont.truetype("arial.ttf", 24)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Diagonal stripes background
-    stripe_width = 40
-    for i in range(0, img.width + img.height, stripe_width * 2):
-        draw.line([(i, 0), (i - img.height, img.height)], fill=primary_color, width=stripe_width)
-    
-    # Energy band across top
-    draw.rectangle([(0, 0), (img.width, 100)], fill=accent_color)
-    
-    # Headline in white with thick letters
-    draw.text((50, 20), flyer_data['headline'], fill='white', font=font_huge)
-    
-    # Main content area with semi-transparent overlay
-    overlay = Image.new('RGBA', (img.width, img.height), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
-    overlay_draw.rectangle([(0, 130), (img.width, img.height - 50)], fill=(255, 255, 255, 25))
-    img.paste(overlay, (0, 0), overlay)
-    
-    # Event details in bold
-    draw.text((60, 150), "🗓️  " + flyer_data['date_time_line'], fill=accent_color, font=font_large)
-    draw.text((60, 240), "📍 " + flyer_data['location_line'], fill=accent_color, font=font_large)
-    
-    # Body wrapped - truncate if too long
-    body_text = flyer_data['body_blurb'][:100]
-    wrapped_body = textwrap.fill(body_text, width=50)
-    draw.text((60, 350), wrapped_body, fill='white', font=font_med)
-    
-    # Action button (bold CTA)
-    draw.rectangle([(100, 580), (img.width - 100, 680)], fill=accent_color, outline='white', width=5)
-    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_huge)
-    cta_width = cta_bbox[2] - cta_bbox[0]
-    cta_x = (img.width - cta_width) // 2
-    draw.text((cta_x, 595), flyer_data['call_to_action'], fill='white', font=font_huge)
-    
-    # QR corner badge
-    qr_img = Image.open(qr_path).resize((160, 160))
-    qr_bg = Image.new('RGB', (190, 190), accent_color)
-    qr_bg.paste(qr_img, (15, 15))
-    img.paste(qr_bg, (img.width - 210, img.height - 190))
-    
-    draw.text((img.width - 200, img.height - 30), "SCAN TO REGISTER", fill='white', font=font_small)
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Sporty Dynamic) to: {os.path.abspath(output_path)}")
-    return output_path
-
-def save_flyer_png_minimalist_cool(flyer_data: Dict, qr_path: str, output_path: str):
-    """Ultra-clean minimalist design with lots of whitespace and typography focus."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    
-    img = Image.new('RGB', (1100, 850), color=(255, 255, 255))
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 90)
-        font_large = ImageFont.truetype("arial.ttf", 42)
-        font_med = ImageFont.truetype("arial.ttf", 28)
-        font_small = ImageFont.truetype("arial.ttf", 22)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Single color accent bar (very thin)
-    draw.rectangle([(0, 200), (img.width, 210)], fill=primary_color)
-    
-    # Minimalist headline (centered, huge)
-    headline_lines = flyer_data['headline'].split('\n') if '\n' in flyer_data['headline'] else [flyer_data['headline']]
-    y_pos = 80
-    for line in headline_lines:
-        bbox = draw.textbbox((0, 0), line, font=font_huge)
-        line_width = bbox[2] - bbox[0]
-        x_pos = (img.width - line_width) // 2
-        draw.text((x_pos, y_pos), line, fill=primary_color, font=font_huge)
-        y_pos += 100
-    
-    # Plenty of whitespace
-    y_pos = 300
-    
-    # Details - one per line, left aligned
-    draw.text((100, y_pos), flyer_data['date_time_line'], fill=(80, 80, 80), font=font_med)
-    y_pos += 80
-    draw.text((100, y_pos), flyer_data['location_line'], fill=(80, 80, 80), font=font_med)
-    y_pos += 100
-    
-    # Body description - truncate if too long
-    body_text = flyer_data['body_blurb'][:100]
-    wrapped_body = textwrap.fill(body_text, width=45)
-    draw.text((100, y_pos), wrapped_body, fill=(120, 120, 120), font=font_small)
-    
-    # CTA at bottom - simple and elegant
-    draw.text((100, img.height - 100), flyer_data['call_to_action'], fill=primary_color, font=font_large)
-    
-    # QR code bottom right - no border, just QR
-    qr_img = Image.open(qr_path).resize((200, 200))
-    img.paste(qr_img, (img.width - 250, img.height - 250))
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Minimalist Cool) to: {os.path.abspath(output_path)}")
-    return output_path
-
-def save_flyer_png_festival_fun(flyer_data: Dict, qr_path: str, output_path: str):
-    """Festival/carnival style with colorful sections and playful layout."""
-    primary_color = hex_to_rgb(flyer_data['color_scheme']['primary'])
-    accent_color = hex_to_rgb(flyer_data['color_scheme']['accent'])
-    
-    img = Image.new('RGB', (1100, 850), color=(255, 220, 100))  # Warm yellow base
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_huge = ImageFont.truetype("arial.ttf", 76)
-        font_large = ImageFont.truetype("arial.ttf", 46)
-        font_med = ImageFont.truetype("arial.ttf", 30)
-        font_small = ImageFont.truetype("arial.ttf", 24)
-    except:
-        font_huge = font_large = font_med = font_small = ImageFont.load_default()
-    
-    # Colorful header banner with gradient effect (simulated with rectangles)
-    draw.rectangle([(0, 0), (img.width, 30)], fill=primary_color)
-    draw.rectangle([(0, 30), (img.width, 60)], fill=accent_color)
-    draw.rectangle([(0, 60), (img.width, 90)], fill=primary_color)
-    
-    # Headline with background
-    draw.rectangle([(40, 110), (img.width - 40, 190)], fill=(255, 255, 255), outline=primary_color, width=4)
-    draw.text((60, 125), flyer_data['headline'], fill=primary_color, font=font_huge)
-    
-    # Subheadline
-    draw.text((60, 210), flyer_data['subheadline'], fill=accent_color, font=font_large)
-    
-    # Three info boxes with different colors
-    boxes = [
-        (60, 280, primary_color, "📅", flyer_data['date_time_line']),
-        (360, 280, accent_color, "📍", flyer_data['location_line']),
-        (660, 280, primary_color, "🎉", "Join us for fun!")
-    ]
-    
-    for box_x, box_y, color, icon, text in boxes:
-        draw.rectangle([(box_x, box_y), (box_x + 280, box_y + 150)], fill=color, outline='white', width=3)
-        draw.text((box_x + 20, box_y + 20), icon, fill='white', font=font_huge)
-        wrapped_text = textwrap.fill(text, width=20)
-        draw.text((box_x + 20, box_y + 70), wrapped_text, fill='white', font=font_med)
-    
-    # Large body area
-    draw.rectangle([(60, 470), (img.width - 60, 680)], fill='white', outline=primary_color, width=4)
-    body_text = flyer_data['body_blurb'][:120]
-    wrapped_body = textwrap.fill(body_text, width=55)
-    draw.text((80, 490), wrapped_body, fill=(40, 40, 40), font=font_med)
-    
-    # CTA button
-    draw.rectangle([(150, 720), (img.width - 150, 800)], fill=primary_color, outline=accent_color, width=5)
-    cta_bbox = draw.textbbox((0, 0), flyer_data['call_to_action'], font=font_large)
-    cta_width = cta_bbox[2] - cta_bbox[0]
-    cta_x = (img.width - cta_width) // 2
-    draw.text((cta_x, 740), flyer_data['call_to_action'], fill='white', font=font_large)
-    
-    # QR code with festive frame
-    qr_img = Image.open(qr_path).resize((140, 140))
-    img.paste(qr_img, (img.width - 180, 20))
-    
-    img.save(output_path)
-    print(f"✅ FLYER SAVED (Festival Fun) to: {os.path.abspath(output_path)}")
-    return output_path
 
 def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png"):
-    """Generate professional flyer with rotating design templates."""
+    """Generate professional flyer using HTML/CSS converted to PNG."""
     print_banner("🎨 GENERATING FLYER PNG", "🖼️")
 
     # If flyer_data is a list, use the first element
@@ -609,46 +708,42 @@ def save_flyer_png(flyer_data: Dict, qr_path: str, output_path: str = "flyer.png
     if not all(k in flyer_data['color_scheme'] for k in ['primary', 'accent']):
         raise ValueError("color_scheme must have 'primary' and 'accent' hex colors")
 
-    # Select design based on design_style in flyer_data, or rotate through designs
-    design_style = flyer_data.get('design_style', '').lower()
+    # Convert QR code to base64
+    with open(qr_path, 'rb') as f:
+        qr_base64 = base64.b64encode(f.read()).decode('utf-8')
     
-    designs = [
-        save_flyer_png_modern_clean,
-        save_flyer_png_bold_vibrant,
-        save_flyer_png_professional_business,
-        save_flyer_png_retro_playful,
-        save_flyer_png_sporty_dynamic,
-        save_flyer_png_minimalist_cool,
-        save_flyer_png_festival_fun
-    ]
+    # Get randomized layout
+    layout = generate_random_layout_variant()
+    print(f"🎨 Using layout: {layout.replace('_', ' ').title()}")
     
-    # Map design names or use hash-based rotation for variety
-    if design_style == 'bold' or design_style == 'vibrant':
-        chosen_design = save_flyer_png_bold_vibrant
-    elif design_style == 'professional' or design_style == 'business':
-        chosen_design = save_flyer_png_professional_business
-    elif design_style == 'retro' or design_style == 'playful':
-        chosen_design = save_flyer_png_retro_playful
-    elif design_style == 'sporty' or design_style == 'dynamic':
-        chosen_design = save_flyer_png_sporty_dynamic
-    elif design_style == 'minimalist' or design_style == 'cool':
-        chosen_design = save_flyer_png_minimalist_cool
-    elif design_style == 'festival' or design_style == 'fun':
-        chosen_design = save_flyer_png_festival_fun
-    else:
-        # Use hash of headline to consistently pick same design for same event
-        headline_hash = int(hashlib.md5(flyer_data['headline'].encode()).hexdigest(), 16)
-        chosen_design = designs[headline_hash % len(designs)]
+    # Generate HTML
+    html_content = generate_html_flyer(flyer_data, qr_base64, layout)
     
-    print(f"📐 Using design template: {chosen_design.__name__.replace('save_flyer_png_', '').replace('_', ' ').title()}")
-    return chosen_design(flyer_data, qr_path, output_path)
+    # Convert HTML to PNG using html2image
+    try:
+        hti = Html2Image()
+        # Fix: use html_str instead of html_string
+        hti.screenshot(html_str=html_content, save_as=output_path, size=(1100, 850))
+        print(f"✅ FLYER SAVED to: {os.path.abspath(output_path)}")
+        print(f"📐 Layout: {layout} | Design: HTML/CSS")
+        return output_path
+    except Exception as e:
+        print(f"❌ Error converting HTML to PNG: {e}")
+        # Fallback: save HTML for debugging with UTF-8 encoding
+        html_file = output_path.replace('.png', '.html')
+        # Use UTF-8 encoding to handle emojis and special characters
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        print(f"💾 Saved HTML for debugging: {html_file}")
+        raise
 
 async def email_generation_node(state: State) -> Command[Literal["form_generation", "__end__"]]:
     print_banner("📧 STEP 1: PROPOSAL EMAIL")
     
     event_details = state.get("event_details", {})
-    truncated_messages = truncate_messages(state["messages"])
+    truncated_messages = truncate_messages(state["messages"], max_messages=2)
     print(f"✉️ Generating proposal email for: {event_details.get('event_name', 'Unnamed Event')}")
+    print(f"📊 Message history: {len(state['messages'])} → {len(truncated_messages)} messages")
     
     # Create a concise email generation prompt
     email_task_prompt = f"""
@@ -713,7 +808,7 @@ async def email_generation_node(state: State) -> Command[Literal["form_generatio
         if email_content:
             print("\n📄 GENERATED EMAIL:")
             print("="*60)
-            print(email_content)
+            print(email_content[:500])  # Truncate display
             print("="*60)
         else:
             print("⚠️ No email content generated")
@@ -750,13 +845,21 @@ async def email_generation_node(state: State) -> Command[Literal["form_generatio
         import traceback
         traceback.print_exc()
     
+    # Truncate response messages to keep downstream token usage low
+    final_messages = truncate_messages(response.get("messages", truncated_messages), max_messages=2)
     print("\n➡️ Moving to form generation...")
-    return Command(update={"messages": response["messages"], "event_details": event_details}, goto="form_generation")
+    return Command(
+        update={"messages": final_messages, "event_details": event_details},
+        goto="form_generation"
+    )
 
 async def form_generation_node(state: State) -> Command[Literal["flyer_generation", "__end__"]]:
     print_banner("📋 STEP 2: REGISTRATION FORM")
     
     event_details = state.get("event_details", {})
+    truncated_messages = truncate_messages(state["messages"], max_messages=2)
+    print(f"📊 Message history: {len(state['messages'])} → {len(truncated_messages)} messages")
+    
     form_url = event_details.get("form_url", "https://forms.example.com/register")
     
     # Check if hosted_app_url is provided - use it instead of form_url
@@ -767,15 +870,13 @@ async def form_generation_node(state: State) -> Command[Literal["flyer_generatio
     else:
         print(f"🔗 Form will link to: {form_url}")
     
-    truncated_messages = truncate_messages(state["messages"])
-    
     # Generate the standardized form with event details
     form_schema = generate_standardized_form(event_details)
     
     # Display form schema
     print("\n📋 FORM SCHEMA GENERATED:")
     print("="*60)
-    print(json.dumps(form_schema, indent=2))
+    print(json.dumps(form_schema, indent=2)[:500])  # Truncate display
     print("="*60)
     
     # Save form schema to file for form_app.py to load automatically
@@ -809,7 +910,8 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     event_details = state.get("event_details", {})
     form_url = state.get("form_url", event_details.get("form_url", "https://forms.example.com/register"))
     qr_path = state.get("qr_path")
-    truncated_messages = truncate_messages(state["messages"])
+    truncated_messages = truncate_messages(state["messages"], max_messages=2)
+    print(f"📊 Message history: {len(state['messages'])} → {len(truncated_messages)} messages")
     
     print(f"🎯 Creating flyer for: {event_details.get('event_name', 'Unnamed Event')}")
     if qr_path:
@@ -833,7 +935,8 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     """
     
     designer_agent = create_agent(llm, tools=[design_flyer_variations], system_prompt=designer_prompt)
-    designer_response = await designer_agent.ainvoke({"messages": truncated_messages})
+    # Use minimal message history for designers
+    designer_response = await designer_agent.ainvoke({"messages": truncate_messages(truncated_messages, max_messages=1)})
     
     # Extract the variations from the designer's response
     design_variations = None
@@ -845,7 +948,7 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     print("\n👨‍🎨 DESIGNER RECOMMENDATIONS:")
     if designer_output:
         print("="*60)
-        print(designer_output[:600] + ("..." if len(designer_output) > 600 else ""))
+        print(designer_output[:400] + ("..." if len(designer_output) > 400 else ""))
         print("="*60)
     
     # Extract variations from tool call results if available
@@ -901,7 +1004,8 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     """
     
     editor_agent = create_agent(llm, tools=[select_and_render_flyer], system_prompt=editor_prompt)
-    editor_response = await editor_agent.ainvoke({"messages": designer_response["messages"]})
+    # Use minimal message history for editor
+    editor_response = await editor_agent.ainvoke({"messages": truncate_messages(truncated_messages, max_messages=1)})
     
     # Extract editor output
     editor_output = None
@@ -912,7 +1016,7 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     if editor_output:
         print("\n✏️ EDITOR SELECTION:")
         print("="*60)
-        print(editor_output[:600] + ("..." if len(editor_output) > 600 else ""))
+        print(editor_output[:400] + ("..." if len(editor_output) > 400 else ""))
         print("="*60)
     
     print("\n✅ Creative flyer generated with embedded QR code!")
@@ -921,7 +1025,7 @@ async def flyer_generation_node(state: State) -> Command[Literal["__end__"]]:
     
     return Command(
         update={
-            "messages": editor_response["messages"],
+            "messages": truncate_messages(editor_response["messages"], max_messages=2),
             "event_details": event_details,
             "form_url": form_url,
             "qr_path": qr_path
@@ -1043,81 +1147,88 @@ def design_flyer_variations(event_details: dict, event_name: str = "Youth Event"
     formatted_date = format_event_date(event_details.get('event_date', 'Coming Soon'))
     date_time_line = formatted_date + " • " + event_details.get('event_time', 'TBA')
     
+    # Generate random color pairs for each variation for more diversity
+    color_pair_1 = generate_random_color_pair()
+    color_pair_2 = generate_random_color_pair()
+    color_pair_3 = generate_random_color_pair()
+    color_pair_4 = generate_random_color_pair()
+    color_pair_5 = generate_random_color_pair()
+    
     design_variations = [
         {
-            "name": "Modern Clean",
-            "vibe": "Professional, polished, modern with clean lines",
-            "design_style": "modern",
+            "name": "Gradient Splash",
+            "vibe": "Modern gradient background with bold typography",
+            "design_style": "gradient_top",
             "headline": f"🎯 {event_details.get('event_name', event_name)}",
             "subheadline": "Get ready for an amazing experience!",
             "date_time_line": date_time_line,
             "location_line": event_details.get('location', 'Location TBA'),
             "body_blurb": "Join us for an incredible event featuring fun, friends, and unforgettable memories. Perfect for ages 12-18!",
             "call_to_action": "Register Now!",
-            "color_scheme": {"primary": "#2E7D32", "accent": "#FFC107"}
+            "color_scheme": {"primary": color_pair_1[0], "accent": color_pair_1[1]}
         },
         {
-            "name": "Retro Playful",
-            "vibe": "Fun, nostalgic 90s style with bouncy energy",
-            "design_style": "retro",
+            "name": "Sidebar Energy",
+            "vibe": "Eye-catching sidebar with modern layout",
+            "design_style": "sidebar_left",
             "headline": f"🎉 {event_details.get('event_name', event_name).upper()}!",
-            "subheadline": "This is going to be LIT! ✨",
+            "subheadline": "This is going to be amazing! ✨",
             "date_time_line": date_time_line,
             "location_line": f"📍 {event_details.get('location', 'Location TBA')}",
-            "body_blurb": "Get hyped! This event is packed with activities, games, friends, and good vibes. You don't want to miss this!",
-            "call_to_action": "Let's Go! 🚀",
-            "color_scheme": {"primary": "#FF6B6B", "accent": "#4ECDC4"}
+            "body_blurb": "Get excited! This event is packed with activities, games, friends, and good vibes. You don't want to miss this!",
+            "call_to_action": "Join Us! 🚀",
+            "color_scheme": {"primary": color_pair_2[0], "accent": color_pair_2[1]}
         },
         {
-            "name": "Sporty Dynamic",
-            "vibe": "High-energy, athletic, action-packed vibes",
-            "design_style": "sporty",
+            "name": "Bold Center",
+            "vibe": "Centered bold design with impact",
+            "design_style": "centered_bold",
             "headline": f"⚡ {event_details.get('event_name', event_name)}",
-            "subheadline": "Game On!",
+            "subheadline": "Be There!",
             "date_time_line": date_time_line,
-            "location_line": f"🏟️ {event_details.get('location', 'Location TBA')}",
-            "body_blurb": f"Ready to bring your A-game? Join us for {event_details.get('event_name', 'this event')} and show what you've got!",
+            "location_line": f"📍 {event_details.get('location', 'Location TBA')}",
+            "body_blurb": f"Ready for an incredible experience? Join us for {event_details.get('event_name', 'this event')} and make memories that last!",
             "call_to_action": "Sign Me Up! 🏆",
-            "color_scheme": {"primary": "#000000", "accent": "#FF6B35"}
+            "color_scheme": {"primary": color_pair_3[0], "accent": color_pair_3[1]}
         },
         {
             "name": "Minimalist Cool",
-            "vibe": "Ultra-modern, sophisticated, clean aesthetic",
-            "design_style": "minimalist",
+            "vibe": "Clean, sophisticated, and modern",
+            "design_style": "minimalist_left",
             "headline": f"{event_details.get('event_name', event_name)}",
             "subheadline": "Be there.",
             "date_time_line": date_time_line,
             "location_line": event_details.get('location', 'Location TBA'),
             "body_blurb": "An unforgettable experience awaits. Simple. Elegant. Powerful.",
             "call_to_action": "Join Us",
-            "color_scheme": {"primary": "#1A1A1A", "accent": "#00D9FF"}
+            "color_scheme": {"primary": color_pair_4[0], "accent": color_pair_4[1]}
         },
         {
-            "name": "Festival Fun",
-            "vibe": "Colorful, celebratory, carnival atmosphere",
-            "design_style": "festival",
+            "name": "Dynamic Geometric",
+            "vibe": "Modern with geometric shapes and visual interest",
+            "design_style": "geometric_bg",
             "headline": f"🎪 {event_details.get('event_name', event_name)} 🎪",
-            "subheadline": "The Event of the Year!",
+            "subheadline": "Event of the Season!",
             "date_time_line": f"📅 {date_time_line}",
-            "location_line": f"🎟️ {event_details.get('location', 'Location TBA')}",
-            "body_blurb": "Music, games, food, friends, and NON-STOP FUN! This is the event everyone will be talking about!",
-            "call_to_action": "Get Your Ticket! 🎟️",
-            "color_scheme": {"primary": "#FF1493", "accent": "#00CED1"}
+            "location_line": f"📍 {event_details.get('location', 'Location TBA')}",
+            "body_blurb": "Experience something amazing with friends, games, and non-stop fun! This is the event everyone will be talking about!",
+            "call_to_action": "Get Your Spot! 🎟️",
+            "color_scheme": {"primary": color_pair_5[0], "accent": color_pair_5[1]}
         }
     ]
     
     descriptions = [
-        "Design 1: Clean, professional look - great for all-ages events",
-        "Design 2: Fun and playful 90s vibe - perfect for getting kids excited",
-        "Design 3: High-energy sports style - ideal for athletic/competitive events",
-        "Design 4: Sophisticated modern - works for any event that wants elegance",
-        "Design 5: Festive carnival - maximum energy and fun for youth events"
+        "Design 1: Modern gradient - clean and contemporary look",
+        "Design 2: Sidebar energy - bold visual divide for impact",
+        "Design 3: Bold center - maximum impact with centered design",
+        "Design 4: Minimalist cool - sophisticated and elegant",
+        "Design 5: Geometric - modern shapes and visual depth"
     ]
     
     return {
         "variations": design_variations,
         "descriptions": descriptions,
-        "note": "Pick your favorite design number (1-5) or mix & match elements!"
+        "note": "Each design has a unique color palette and layout. Pick your favorite or mix & match!"
     }
 
 
