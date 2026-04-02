@@ -1,11 +1,11 @@
 {
-  "title": "Youth Bowling Outing Registration Form",
-  "description": "Register for Youth Bowling Outing. Please provide all required information.",
+  "title": "Girls Night Out Registration Form",
+  "description": "Register for Girls Night Out. Please provide all required information.",
   "event_details": {
-    "event_name": "Youth Bowling Outing",
-    "date": "04-21-2026",
-    "time": "3:00 PM - 5:00 PM",
-    "location": "Strike and Spare",
+    "event_name": "Girls Night Out",
+    "date": "04-14-2026",
+    "time": "6:00 PM - 8:00 PM",
+    "location": "Nail Salon",
     "max_participants": 30,
     "age_range": "12-17"
   },
