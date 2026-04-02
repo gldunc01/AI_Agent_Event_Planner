@@ -1,5 +1,5 @@
 """
-Task runner that bridges UI (ui_app.py) with the LangGraph pipeline (app_copy_2.py)
+Task runner that bridges UI (ui_app.py) with the LangGraph pipeline (app.py)
 
 This module provides a `run_task` function that:
 1. Takes task_type and payload from the UI
@@ -19,8 +19,8 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START
 from langgraph.graph.message import add_messages
 
-import app_copy_2
-from app_copy_2 import (
+import app
+from app import (
     State,
     email_generation_node,
     form_generation_node,
@@ -57,7 +57,7 @@ async def run_task(task_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     )
     
     # Make llm available to nodes
-    app_copy_2.llm = llm
+    app.llm = llm
     
     event_details = payload.get("event_details", {})
     form_url = event_details.get("form_url", "https://forms.example.com/register")
