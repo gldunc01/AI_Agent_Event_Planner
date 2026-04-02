@@ -431,6 +431,14 @@ if submitted:
 with st.sidebar:
     st.header(event_name)
     
+    # Show back button on summary page
+    if st.session_state.get('show_summary', False):
+        if st.button("⬅️ Back to Form", use_container_width=True):
+            st.session_state['show_summary'] = False
+            st.session_state['submission_summary'] = None
+            st.rerun()
+        st.markdown("---")
+    
     # Display event details dynamically from form schema (CUSTOMER VIEW)
     if event_details:
         if "date" in event_details:
