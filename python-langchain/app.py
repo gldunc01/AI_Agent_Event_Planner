@@ -244,8 +244,11 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
         <title>Event Flyer</title>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            html, body {{ width: 1100px; height: 850px; margin: 0; padding: 0; }}
             body {{ font-family: 'Arial', 'Segoe UI', sans-serif; background: white; }}
-            .flyer {{ width: 1100px; height: 850px; position: relative; overflow: hidden; }}
+            .flyer {{ width: 1100px; height: 850px; position: relative; overflow: hidden; margin: 0; padding: 0; }}
+            .qr {{ position: fixed; bottom: 12px; right: 12px; width: 140px; height: 140px; background: white; padding: 8px; box-sizing: border-box; border-radius: 5px; z-index: 9999; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: block; }}
+            .qr img {{ width: 100%; height: 100%; display: block; margin: 0; padding: 0; }}
         </style>
     </head>
     <body>
@@ -255,16 +258,15 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     if layout == "gradient_top":
         html = base_html + f"""
             <style>
-                .gradient-bg {{ background: linear-gradient(135deg, {primary} 0%, {accent} 100%); height: 280px; display: flex; flex-direction: column; justify-content: center; padding: 40px; color: white; }}
-                .headline {{ font-size: 56px; font-weight: bold; margin-bottom: 15px; }}
-                .subheadline {{ font-size: 32px; opacity: 0.9; }}
-                .content {{ padding: 40px; }}
-                .info-box {{ margin: 20px 0; padding: 15px; background: {accent}22; border-left: 5px solid {accent}; border-radius: 5px; }}
-                .info-title {{ font-weight: bold; color: {primary}; font-size: 18px; }}
-                .info-text {{ color: #333; font-size: 16px; margin-top: 5px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 20px 30px; font-size: 24px; font-weight: bold; border-radius: 10px; margin: 20px 0; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 20px; right: 20px; width: 180px; height: 180px; background: white; padding: 10px; border-radius: 5px; }}
+                .gradient-bg {{ background: linear-gradient(135deg, {primary} 0%, {accent} 100%); height: 240px; display: flex; flex-direction: column; justify-content: center; padding: 30px; color: white; }}
+                .headline {{ font-size: 44px; font-weight: bold; margin-bottom: 10px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 24px; opacity: 0.9; word-wrap: break-word; overflow-wrap: break-word; }}
+                .content {{ padding: 25px 30px; max-height: 580px; overflow-y: auto; }}
+                .info-box {{ margin: 12px 0; padding: 12px; background: {accent}22; border-left: 5px solid {accent}; border-radius: 5px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-title {{ font-weight: bold; color: {primary}; font-size: 16px; }}
+                .info-text {{ color: #333; font-size: 14px; margin-top: 4px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 14px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; margin: 12px 0; display: inline-block; white-space: normal; }}
             </style>
             <div class="gradient-bg">
                 <div class="headline">{headline}</div>
@@ -282,8 +284,8 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                 <div class="body-text">{body}</div>
                 <div class="cta">{cta}</div>
             </div>
-            <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -291,15 +293,14 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "sidebar_left":
         html = base_html + f"""
             <style>
-                .sidebar {{ width: 45%; height: 100%; background: linear-gradient(180deg, {primary} 0%, {accent} 100%); color: white; padding: 40px; display: flex; flex-direction: column; justify-content: space-between; float: left; }}
-                .main {{ width: 55%; height: 100%; padding: 40px; overflow-y: auto; float: right; }}
-                .headline {{ font-size: 48px; font-weight: bold; margin-bottom: 20px; }}
-                .subheadline {{ font-size: 28px; opacity: 0.9; margin-bottom: 40px; }}
-                .info-text {{ font-size: 18px; margin: 10px 0; }}
-                .main-headline {{ font-size: 32px; color: {primary}; font-weight: bold; margin-bottom: 20px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 15px 25px; font-size: 20px; font-weight: bold; border-radius: 5px; margin-top: 20px; display: inline-block; }}
-                .qr {{ width: 150px; height: 150px; padding: 8px; background: white; border-radius: 3px; margin-top: auto; }}
+                .sidebar {{ width: 45%; height: 100%; background: linear-gradient(180deg, {primary} 0%, {accent} 100%); color: white; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; float: left; word-wrap: break-word; overflow-wrap: break-word; }}
+                .main {{ width: 55%; height: 100%; padding: 25px; overflow-y: auto; float: right; }}
+                .headline {{ font-size: 36px; font-weight: bold; margin-bottom: 12px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 20px; opacity: 0.9; margin-bottom: 20px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-text {{ font-size: 15px; margin: 8px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .main-headline {{ font-size: 26px; color: {primary}; font-weight: bold; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 14px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; margin-top: 12px; display: inline-block; }}
             </style>
             <div class="sidebar">
                 <div>
@@ -310,7 +311,6 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="info-text">📅 {date_time}</div>
                     <div class="info-text">📍 {location}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
             <div class="main">
                 <div class="main-headline">About This Event</div>
@@ -318,6 +318,7 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                 <div class="cta">{cta}</div>
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -325,14 +326,13 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "centered_bold":
         html = base_html + f"""
             <style>
-                .background {{ width: 100%; height: 100%; background: {primary}; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; padding: 40px; }}
-                .headline {{ font-size: 72px; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }}
-                .subheadline {{ font-size: 36px; margin-bottom: 40px; }}
-                .content-box {{ background: white; color: #333; padding: 30px; border-radius: 15px; max-width: 700px; margin: 20px auto; }}
-                .info-item {{ margin: 15px 0; font-size: 18px; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 24px; font-weight: bold; border-radius: 10px; margin-top: 20px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 160px; height: 160px; background: white; padding: 10px; border-radius: 5px; }}
+                .background {{ width: 100%; height: 100%; background: {primary}; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; padding: 25px; }}
+                .headline {{ font-size: 48px; font-weight: bold; margin-bottom: 12px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 26px; margin-bottom: 20px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .content-box {{ background: white; color: #333; padding: 25px; border-radius: 12px; max-width: 650px; margin: 15px auto; max-height: 550px; overflow-y: auto; }}
+                .info-item {{ margin: 10px 0; font-size: 15px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 14px; line-height: 1.5; margin: 10px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-top: 12px; display: inline-block; }}
             </style>
             <div class="background">
                 <div class="headline">{headline}</div>
@@ -343,9 +343,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -354,15 +354,14 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
         html = base_html + f"""
             <style>
                 .container {{ width: 100%; height: 100%; position: relative; display: flex; }}
-                .left {{ width: 50%; background: {primary}; padding: 40px; color: white; display: flex; flex-direction: column; justify-content: center; clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%); }}
-                .right {{ width: 50%; background: #f5f5f5; padding: 40px; margin-left: -50px; padding-left: 80px; }}
-                .headline {{ font-size: 52px; font-weight: bold; margin-bottom: 20px; }}
-                .subheadline {{ font-size: 28px; opacity: 0.95; }}
-                .right-headline {{ font-size: 32px; color: {primary}; font-weight: bold; margin-bottom: 20px; }}
-                .info-item {{ margin: 15px 0; font-size: 17px; color: #333; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 16px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; margin-top: 20px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 25px; right: 25px; width: 140px; height: 140px; background: white; padding: 8px; border-radius: 4px; }}
+                .left {{ width: 50%; background: {primary}; padding: 30px; color: white; display: flex; flex-direction: column; justify-content: center; clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%); }}
+                .right {{ width: 50%; background: #f5f5f5; padding: 30px; margin-left: -50px; padding-left: 70px; overflow-y: auto; max-height: 850px; }}
+                .headline {{ font-size: 40px; font-weight: bold; margin-bottom: 14px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 22px; opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; }}
+                .right-headline {{ font-size: 26px; color: {primary}; font-weight: bold; margin-bottom: 14px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-item {{ margin: 10px 0; font-size: 14px; color: #333; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 13px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 22px; font-size: 16px; font-weight: bold; border-radius: 6px; margin-top: 12px; display: inline-block; }}
             </style>
             <div class="container">
                 <div class="left">
@@ -376,9 +375,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
-            </div>
+                </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -386,18 +385,17 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "layered_cards":
         html = base_html + f"""
             <style>
-                .background {{ width: 100%; height: 100%; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); padding: 30px; }}
-                .header-card {{ background: {primary}; color: white; padding: 35px; border-radius: 15px; margin-bottom: -20px; position: relative; z-index: 3; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
-                .headline {{ font-size: 48px; font-weight: bold; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 24px; opacity: 0.9; }}
-                .content-card {{ background: white; padding: 40px; border-radius: 15px; margin-top: 30px; position: relative; z-index: 2; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
-                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }}
-                .info-box {{ padding: 15px; background: {accent}15; border-left: 4px solid {accent}; border-radius: 5px; }}
-                .info-label {{ font-weight: bold; color: {primary}; font-size: 16px; }}
-                .info-value {{ color: #666; font-size: 15px; margin-top: 5px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; margin: 20px 0; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 150px; height: 150px; background: white; padding: 8px; border-radius: 5px; }}
+                .background {{ width: 100%; height: 100%; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); padding: 20px; overflow-y: auto; max-height: 850px; }}
+                .header-card {{ background: {primary}; color: white; padding: 25px; border-radius: 12px; margin-bottom: -15px; position: relative; z-index: 3; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
+                .headline {{ font-size: 38px; font-weight: bold; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 20px; opacity: 0.9; word-wrap: break-word; overflow-wrap: break-word; }}
+                .content-card {{ background: white; padding: 28px; border-radius: 12px; margin-top: 20px; position: relative; z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 550px; overflow-y: auto; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }}
+                .info-box {{ padding: 12px; background: {accent}15; border-left: 3px solid {accent}; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 14px; }}
+                .info-value {{ color: #666; font-size: 13px; margin-top: 3px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 13px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 24px; font-size: 15px; font-weight: bold; border-radius: 8px; margin: 12px 0; display: inline-block; }}
             </style>
             <div class="background">
                 <div class="header-card">
@@ -417,10 +415,10 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     </div>
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
-                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
                 </div>
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -428,18 +426,17 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "asymmetric":
         html = base_html + f"""
             <style>
-                .container {{ width: 100%; height: 100%; background: white; position: relative; }}
-                .accent-shape {{ position: absolute; background: {accent}; opacity: 0.1; width: 300px; height: 500px; border-radius: 150px 0 0 150px; right: 0; top: 0; }}
-                .header {{ padding: 40px 50px; position: relative; z-index: 2; }}
-                .headline {{ font-size: 54px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 28px; color: {accent}; }}
-                .main {{ padding: 20px 50px; position: relative; z-index: 2; }}
-                .info-block {{ margin: 20px 0; }}
-                .info-label {{ font-weight: bold; color: {primary}; font-size: 17px; }}
-                .info-value {{ color: #666; font-size: 16px; margin-top: 5px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 25px 0; }}
-                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 12px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 170px; height: 170px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
+                .container {{ width: 100%; height: 100%; background: white; position: relative; overflow-y: auto; }}
+                .accent-shape {{ position: absolute; background: {accent}; opacity: 0.1; width: 250px; height: 400px; border-radius: 125px 0 0 125px; right: 0; top: 0; }}
+                .header {{ padding: 30px 35px; position: relative; z-index: 2; }}
+                .headline {{ font-size: 42px; font-weight: bold; color: {primary}; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 22px; color: {accent}; word-wrap: break-word; overflow-wrap: break-word; }}
+                .main {{ padding: 15px 35px; position: relative; z-index: 2; max-height: 600px; overflow-y: auto; }}
+                .info-block {{ margin: 12px 0; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 14px; }}
+                .info-value {{ color: #666; font-size: 13px; margin-top: 3px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 13px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 12px 28px; font-size: 16px; font-weight: bold; border-radius: 8px; display: inline-block; }}
             </style>
             <div class="container">
                 <div class="accent-shape"></div>
@@ -459,9 +456,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -470,15 +467,14 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
         html = base_html + f"""
             <style>
                 .container {{ width: 100%; height: 100%; display: flex; background: white; }}
-                .left {{ width: 40%; background: {primary}; padding: 50px; color: white; display: flex; flex-direction: column; justify-content: space-between; }}
-                .right {{ width: 60%; padding: 50px; display: flex; flex-direction: column; justify-content: center; }}
-                .headline {{ font-size: 44px; font-weight: 900; margin-bottom: 20px; letter-spacing: -1px; }}
-                .subheadline {{ font-size: 24px; opacity: 0.9; font-weight: 300; }}
-                .right-headline {{ font-size: 36px; color: {primary}; font-weight: bold; margin-bottom: 30px; }}
-                .info-item {{ font-size: 18px; margin: 15px 0; color: #444; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 20px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; margin-top: 20px; }}
-                .qr {{ width: 120px; height: 120px; background: white; padding: 8px; border-radius: 4px; margin-top: auto; }}
+                .left {{ width: 40%; background: {primary}; padding: 35px; color: white; display: flex; flex-direction: column; justify-content: space-between; }}
+                .right {{ width: 60%; padding: 35px; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}
+                .headline {{ font-size: 36px; font-weight: 900; margin-bottom: 14px; letter-spacing: -0.5px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 18px; opacity: 0.9; font-weight: 300; word-wrap: break-word; overflow-wrap: break-word; }}
+                .right-headline {{ font-size: 28px; color: {primary}; font-weight: bold; margin-bottom: 18px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-item {{ font-size: 14px; margin: 10px 0; color: #444; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 13px; line-height: 1.6; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block; margin-top: 12px; }}
             </style>
             <div class="container">
                 <div class="left">
@@ -486,7 +482,6 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                         <div class="headline">{headline}</div>
                         <div class="subheadline">{subheadline}</div>
                     </div>
-                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
                 </div>
                 <div class="right">
                     <div class="right-headline">Event Details</div>
@@ -497,6 +492,7 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                 </div>
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -504,14 +500,13 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "full_splash":
         html = base_html + f"""
             <style>
-                .splash {{ width: 100%; height: 100%; background: linear-gradient(135deg, {primary} 0%, {accent} 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 50px; color: white; text-align: center; }}
-                .headline {{ font-size: 68px; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 6px rgba(0,0,0,0.3); }}
-                .subheadline {{ font-size: 32px; opacity: 0.95; margin-bottom: 40px; }}
-                .content {{ background: rgba(255,255,255,0.95); color: #333; padding: 30px; border-radius: 15px; margin: 20px auto; max-width: 600px; }}
-                .info-item {{ font-size: 18px; margin: 10px; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.6; margin: 15px 0; }}
-                .cta {{ background: {primary}; color: white; padding: 16px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; margin-top: 15px; display: inline-block; }}
-                .qr {{ position: absolute; top: 20px; right: 20px; width: 150px; height: 150px; background: white; padding: 10px; border-radius: 5px; }}
+                .splash {{ width: 100%; height: 100%; background: linear-gradient(135deg, {primary} 0%, {accent} 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; color: white; text-align: center; overflow-y: auto; }}
+                .headline {{ font-size: 48px; font-weight: 900; margin-bottom: 10px; text-shadow: 2px 2px 6px rgba(0,0,0,0.3); word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 24px; opacity: 0.95; margin-bottom: 20px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .content {{ background: rgba(255,255,255,0.95); color: #333; padding: 22px; border-radius: 12px; margin: 15px auto; max-width: 550px; max-height: 550px; overflow-y: auto; }}
+                .info-item {{ font-size: 14px; margin: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 13px; line-height: 1.5; margin: 10px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {primary}; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-top: 10px; display: inline-block; }}
             </style>
             <div class="splash">
                 <div class="headline">{headline}</div>
@@ -522,9 +517,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -532,18 +527,17 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "ribbon_header":
         html = base_html + f"""
             <style>
-                .container {{ width: 100%; height: 100%; background: #fafafa; padding: 40px; }}
-                .ribbon {{ background: {primary}; color: white; padding: 30px; margin: -40px -40px 40px -40px; position: relative; }}
-                .ribbon::after {{ content: ''; position: absolute; bottom: -15px; left: 0; right: 0; height: 15px; background: inherit; clip-path: polygon(0 0, 0 50%, 50% 100%, 100% 50%, 100% 0); }}
-                .headline {{ font-size: 52px; font-weight: bold; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 26px; opacity: 0.9; }}
-                .main {{ position: relative; z-index: 1; padding-top: 25px; }}
-                .info-section {{ margin: 25px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid {accent}; }}
-                .info-label {{ font-weight: bold; color: {primary}; font-size: 16px; }}
-                .info-value {{ color: #666; margin-top: 5px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.6; margin: 20px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 18px 35px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; margin: 20px 0; }}
-                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+                .container {{ width: 100%; height: 100%; background: #fafafa; padding: 25px; overflow-y: auto; max-height: 850px; }}
+                .ribbon {{ background: {primary}; color: white; padding: 22px; margin: -25px -25px 25px -25px; position: relative; }}
+                .ribbon::after {{ content: ''; position: absolute; bottom: -10px; left: 0; right: 0; height: 10px; background: inherit; clip-path: polygon(0 0, 0 50%, 50% 100%, 100% 50%, 100% 0); }}
+                .headline {{ font-size: 38px; font-weight: bold; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 20px; opacity: 0.9; word-wrap: break-word; overflow-wrap: break-word; }}
+                .main {{ position: relative; z-index: 1; padding-top: 18px; }}
+                .info-section {{ margin: 14px 0; padding: 12px; background: white; border-radius: 6px; border-left: 3px solid {accent}; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 14px; }}
+                .info-value {{ color: #666; margin-top: 3px; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 13px; line-height: 1.5; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; display: inline-block; margin: 12px 0; }}
             </style>
             <div class="ribbon">
                 <div class="headline">{headline}</div>
@@ -560,9 +554,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                 </div>
                 <div class="body-text">{body}</div>
                 <div class="cta">{cta}</div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -570,15 +564,14 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "hexagon_accent":
         html = base_html + f"""
             <style>
-                .container {{ width: 100%; height: 100%; background: linear-gradient(to right, #f0f0f0 50%, white 50%); padding: 40px; }}
-                .hex {{ position: absolute; right: 30px; top: 30px; width: 200px; height: 200px; background: {accent}; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); opacity: 0.2; }}
-                .content {{ max-width: 600px; position: relative; z-index: 1; }}
-                .headline {{ font-size: 56px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 40px; }}
-                .info-item {{ margin: 18px 0; font-size: 18px; color: #555; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
-                .cta {{ background: {primary}; color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 40px; right: 40px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+                .container {{ width: 100%; height: 100%; background: linear-gradient(to right, #f0f0f0 50%, white 50%); padding: 30px; overflow-y: auto; max-height: 850px; }}
+                .hex {{ position: absolute; right: 20px; top: 20px; width: 150px; height: 150px; background: {accent}; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); opacity: 0.15; }}
+                .content {{ max-width: 550px; position: relative; z-index: 1; }}
+                .headline {{ font-size: 42px; font-weight: bold; color: {primary}; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 22px; color: {accent}; margin-bottom: 20px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-item {{ margin: 10px 0; font-size: 14px; color: #555; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 13px; line-height: 1.6; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {primary}; color: white; padding: 12px 28px; font-size: 16px; font-weight: bold; border-radius: 8px; display: inline-block; }}
             </style>
             <div class="hex"></div>
             <div class="container">
@@ -590,9 +583,9 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
                 </div>
-                <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -600,20 +593,19 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "geometric_bg":
         html = base_html + f"""
             <style>
-                .container {{ width: 100%; height: 100%; background: white; position: relative; overflow: hidden; }}
-                .geo1 {{ position: absolute; width: 300px; height: 300px; background: {primary}; opacity: 0.08; top: -50px; right: -50px; transform: rotate(45deg); }}
-                .geo2 {{ position: absolute; width: 250px; height: 250px; background: {accent}; opacity: 0.08; bottom: -30px; left: -30px; border-radius: 50%; }}
-                .geo3 {{ position: absolute; width: 200px; height: 300px; background: {accent}; opacity: 0.06; top: 50%; right: 10%; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }}
-                .content {{ position: relative; z-index: 1; padding: 50px; }}
-                .headline {{ font-size: 56px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 40px; }}
-                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0; }}
-                .info-box {{ padding: 15px; background: {accent}15; border-radius: 8px; }}
-                .info-label {{ font-weight: bold; color: {primary}; }}
-                .info-value {{ color: #666; margin-top: 5px; font-size: 15px; }}
-                .body-text {{ color: #555; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
-                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 10px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 150px; height: 150px; background: white; padding: 8px; border-radius: 5px; }}
+                .container {{ width: 100%; height: 100%; background: white; position: relative; overflow-y: auto; max-height: 850px; }}
+                .geo1 {{ position: absolute; width: 200px; height: 200px; background: {primary}; opacity: 0.06; top: -40px; right: -40px; transform: rotate(45deg); pointer-events: none; }}
+                .geo2 {{ position: absolute; width: 180px; height: 180px; background: {accent}; opacity: 0.06; bottom: -20px; left: -20px; border-radius: 50%; pointer-events: none; }}
+                .geo3 {{ position: absolute; width: 150px; height: 220px; background: {accent}; opacity: 0.04; top: 40%; right: 5%; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); pointer-events: none; }}
+                .content {{ position: relative; z-index: 1; padding: 35px; }}
+                .headline {{ font-size: 42px; font-weight: bold; color: {primary}; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 22px; color: {accent}; margin-bottom: 20px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }}
+                .info-box {{ padding: 12px; background: {accent}15; border-radius: 6px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-label {{ font-weight: bold; color: {primary}; font-size: 13px; }}
+                .info-value {{ color: #666; margin-top: 3px; font-size: 12px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #555; font-size: 13px; line-height: 1.6; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: linear-gradient(135deg, {primary}, {accent}); color: white; padding: 12px 28px; font-size: 16px; font-weight: bold; border-radius: 8px; display: inline-block; }}
             </style>
             <div class="container">
                 <div class="geo1"></div>
@@ -634,10 +626,10 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     </div>
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
-                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
                 </div>
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
@@ -645,18 +637,17 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
     elif layout == "bubble_accent":
         html = base_html + f"""
             <style>
-                .container {{ width: 100%; height: 100%; background: {primary}; padding: 40px; margin: 0; }}
-                .bubble {{ position: absolute; background: {accent}; opacity: 0.2; border-radius: 50%; }}
-                .bubble1 {{ width: 250px; height: 250px; top: 50px; left: 50px; }}
-                .bubble2 {{ width: 200px; height: 200px; bottom: 100px; right: 80px; }}
-                .bubble3 {{ width: 150px; height: 150px; top: 60%; left: 70%; }}
-                .card {{ background: white; color: #333; padding: 50px; border-radius: 20px; margin: 40px; position: relative; z-index: 1; }}
-                .headline {{ font-size: 52px; font-weight: bold; color: {primary}; margin-bottom: 10px; }}
-                .subheadline {{ font-size: 28px; color: {accent}; margin-bottom: 30px; }}
-                .info-item {{ font-size: 18px; margin: 15px 0; color: #555; }}
-                .body-text {{ color: #666; font-size: 16px; line-height: 1.7; margin: 25px 0; }}
-                .cta {{ background: {accent}; color: white; padding: 18px 40px; font-size: 22px; font-weight: bold; border-radius: 12px; display: inline-block; }}
-                .qr {{ position: absolute; bottom: 30px; right: 30px; width: 160px; height: 160px; background: white; padding: 8px; border-radius: 5px; }}
+                .container {{ width: 100%; height: 100%; background: {primary}; padding: 25px; margin: 0; overflow-y: auto; max-height: 850px; }}
+                .bubble {{ position: absolute; background: {accent}; opacity: 0.15; border-radius: 50%; pointer-events: none; }}
+                .bubble1 {{ width: 180px; height: 180px; top: 30px; left: 30px; }}
+                .bubble2 {{ width: 140px; height: 140px; bottom: 60px; right: 50px; }}
+                .bubble3 {{ width: 110px; height: 110px; top: 55%; left: 65%; }}
+                .card {{ background: white; color: #333; padding: 30px; border-radius: 15px; margin: 25px; position: relative; z-index: 1; max-height: 600px; overflow-y: auto; }}
+                .headline {{ font-size: 38px; font-weight: bold; color: {primary}; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .subheadline {{ font-size: 20px; color: {accent}; margin-bottom: 16px; word-wrap: break-word; overflow-wrap: break-word; }}
+                .info-item {{ font-size: 14px; margin: 10px 0; color: #555; word-wrap: break-word; overflow-wrap: break-word; }}
+                .body-text {{ color: #666; font-size: 13px; line-height: 1.6; margin: 12px 0; word-wrap: break-word; overflow-wrap: break-word; }}
+                .cta {{ background: {accent}; color: white; padding: 12px 28px; font-size: 16px; font-weight: bold; border-radius: 10px; display: inline-block; }}
             </style>
             <div class="container">
                 <div class="bubble bubble1"></div>
@@ -669,10 +660,10 @@ def generate_html_flyer(flyer_data: Dict, qr_base64: str, layout: str = None) ->
                     <div class="info-item">📍 {location}</div>
                     <div class="body-text">{body}</div>
                     <div class="cta">{cta}</div>
-                    <img class="qr" src="data:image/png;base64,{qr_base64}" alt="QR Code">
                 </div>
             </div>
         </div>
+        <div class="qr"><img src="data:image/png;base64,{qr_base64}" alt="QR Code"></div>
         </body>
         </html>
         """
